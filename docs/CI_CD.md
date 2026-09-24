@@ -2,7 +2,7 @@
 
 ## What is active now
 
-`.github/workflows/ci.yml` runs on every pull request to `main`, every push to `main`, and manual dispatch. Before the React Native app exists, it validates the repository and planning documents. Once `package.json` exists, it requires a committed `package-lock.json` and `.nvmrc`, then runs `npm ci`, `npm run lint`, `npm run typecheck`, and `npm test -- --ci --runInBand`. When `android/gradlew` exists, it also builds an unsigned debug APK and retains it for seven days.
+`.github/workflows/ci.yml` runs on every pull request to `main`, every push to `main`, and manual dispatch. Before the React Native app exists, it validates the repository and planning documents. Once `package.json` exists, it requires a committed `package-lock.json` and `.nvmrc` containing `22`, then runs `npm ci`, `npm run lint`, `npm run typecheck`, and `npm test -- --ci --runInBand`. When `android/gradlew` exists, it also builds an unsigned debug APK and retains it for seven days.
 
 `.github/workflows/release.yml` is manual-only. It is a guarded release preflight—not a pretend publishing workflow. It requires the exact signing secrets and native app files for the selected platform before any future release-build jobs can be enabled.
 
@@ -18,7 +18,7 @@
 
 Before committing the initial React Native project, add:
 
-- `.nvmrc` containing the team-approved Node major version.
+- `.nvmrc` containing `22` (the Node major used by CI).
 - `package-lock.json`; this repository standardizes on npm for reproducible CI installs.
 - `lint`, `typecheck`, and `test` scripts in `package.json`.
 - Executable `android/gradlew` once native Android is generated.

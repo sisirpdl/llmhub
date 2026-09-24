@@ -33,62 +33,90 @@ jobs:
 
   app-quality:
     name: App quality
-    # The app has not been initialized yet. This job activates automatically
-    # when package.json is committed, and then requires a reproducible npm lockfile.
-    if: ${{ hashFiles('package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
+          # Keep this in sync with the initial app's .nvmrc.
+          node-version: '22'
+
+      - name: Detect the app bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f package.json ]]; then
+            echo 'APP_INITIALIZED=false' >> "$GITHUB_ENV"
+            echo 'No package.json yet; app checks will activate after bootstrap.'
+            exit 0
+          fi
+          test -f package-lock.json
+          test -f .nvmrc
+          grep -qx '22' .nvmrc
+          echo 'APP_INITIALIZED=true' >> "$GITHUB_ENV"
 
       - name: Install exactly locked dependencies
+        if: ${{ env.APP_INITIALIZED == 'true' }}
         run: npm ci
 
       - name: Require quality scripts
+        if: ${{ env.APP_INITIALIZED == 'true' }}
         run: |
           node -e "const s=require('./package.json').scripts||{}; for (const n of ['lint','typecheck','test']) if (!s[n]) { console.error('Missing required npm script: '+n); process.exit(1) }"
 
       - name: Lint
+        if: ${{ env.APP_INITIALIZED == 'true' }}
         run: npm run lint
 
       - name: Type check
+        if: ${{ env.APP_INITIALIZED == 'true' }}
         run: npm run typecheck
 
       - name: Unit tests
+        if: ${{ env.APP_INITIALIZED == 'true' }}
         run: npm test -- --ci --runInBand
 
   android-debug-build:
     name: Android debug build
     needs: app-quality
-    if: ${{ hashFiles('android/gradlew') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect the Android project
+        id: android
+        shell: bash
+        run: |
+          if [[ -x android/gradlew ]]; then
+            echo 'build=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'build=false' >> "$GITHUB_OUTPUT"
+            echo 'No Android Gradle wrapper yet; Android build will activate after bootstrap.'
+          fi
+
       - uses: actions/setup-node@v4
+        if: ${{ steps.android.outputs.build == 'true' }}
         with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
+          node-version: '22'
 
       - uses: actions/setup-java@v4
+        if: ${{ steps.android.outputs.build == 'true' }}
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Install exactly locked dependencies
+        if: ${{ steps.android.outputs.build == 'true' }}
         run: npm ci
 
       - name: Assemble unsigned debug APK
+        if: ${{ steps.android.outputs.build == 'true' }}
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload debug APK
+        if: ${{ steps.android.outputs.build == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
