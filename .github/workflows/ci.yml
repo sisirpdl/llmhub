@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Default-deny token permissions. Add only the least privilege a future job needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-health:
+    name: Repository health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate workflow YAML and required planning documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e "Dir['.github/workflows/*.{yml,yaml}'].each { |f| YAML.load_file(f); puts \"valid YAML: #{f}\" }" -ryaml
+          test -s README.md
+          test -s docs/USER_STORIES.md
+          test -s docs/CI_CD.md
+
+  app-quality:
+    name: App quality
+    # The app has not been initialized yet. This job activates automatically
+    # when package.json is committed, and then requires a reproducible npm lockfile.
+    if: ${{ hashFiles('package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install exactly locked dependencies
+        run: npm ci
+
+      - name: Require quality scripts
+        run: |
+          node -e "const s=require('./package.json').scripts||{}; for (const n of ['lint','typecheck','test']) if (!s[n]) { console.error('Missing required npm script: '+n); process.exit(1) }"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test -- --ci --runInBand
+
+  android-debug-build:
+    name: Android debug build
+    needs: app-quality
+    if: ${{ hashFiles('android/gradlew') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install exactly locked dependencies
+        run: npm ci
+
+      - name: Assemble unsigned debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
