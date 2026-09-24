@@ -31,39 +31,48 @@ This is a functioning private-LLM MVP, not a Siri replacement, a cloud chat prod
 
 A story is done only when its acceptance criteria pass on the stated targets, errors are visible to the user, TypeScript/lint checks pass, and the pull request includes a short device-test note. A feature that only works in a simulator is not done for inference or large-file behavior.
 
-## Team lanes
+## Team lanes and hardware ownership
 
-**Developer A — native, storage, reliability:** `llama.rn` integration, iOS/Android builds, model catalog/download/storage, lifecycle and profiling.
+**User A — Android device owner:** owns Android-native configuration, Android `llama.rn` builds, storage/download behavior on the physical Android device, and Android lifecycle/performance testing. A can also review the shared TypeScript and UI work.
 
-**Developer B — product/UI:** application shell, chat state and UI, streamed rendering, persistence, accessibility, and integration tests.
+**User B — macOS/iOS toolchain owner:** owns the iOS native project, CocoaPods/Xcode builds, Metal/iOS lifecycle work, and the shared TypeScript chat/UI implementation. B can use an Android emulator for basic UI regression but does not certify Android inference behavior.
 
-Both developers pair on the device smoke tests at the end of each day. Merge small PRs behind working, user-visible states rather than maintaining a long-lived integration branch.
+| Platform evidence | Responsible person | Minimum test hardware | What it proves |
+| --- | --- | --- | --- |
+| Android inference | User A | Physical Android ARM64 phone | Native build, model download/storage, load, generation, and lifecycle behavior. |
+| iOS build and UI | User B | MacBook plus iOS Simulator | Build compatibility and UI flow only; it does **not** prove device memory, Metal performance, thermal behavior, or large-file reliability. |
+| iOS inference release gate | User B, with access to a tester’s device if needed | Physical iPhone | Required before calling iOS support complete. |
+
+**Decision needed by Day 1:** identify a physical iPhone User B can use. If none is available, iOS is a development-preview target only; the MVP’s formal release gate becomes Android-first, and iOS device validation is a tracked follow-up rather than an untested claim.
+
+Use short-lived feature branches and small pull requests. User A must provide an Android device-test note on Android-impacting changes; User B must provide an Xcode/simulator note on iOS-impacting changes. Pair asynchronously on the shared TypeScript contract, and merge behind working, user-visible states rather than maintaining a long-lived integration branch.
 
 ## Milestones
 
 | Milestone | End-of-day evidence |
 | --- | --- |
-| Day 1 | Empty app builds and launches on one physical iOS device and one physical Android device. |
-| Day 3 | A manifest-selected model downloads with visible progress and remains usable after app relaunch. |
-| Day 5 | The model loads and produces a deterministic test completion on both devices. |
-| Day 8 | A user can conduct a streamed text chat locally. |
-| Day 10 | Lifecycle/error cases pass on both targets; release candidate is manually tested. |
+| Day 1 | User A: Debug Android build launches on the physical phone. User B: iOS build launches in Simulator; physical-iPhone access is confirmed or iOS is explicitly marked preview-only. |
+| Day 3 | User A: a manifest-selected model downloads with progress and survives relaunch on Android. User B: catalog/download UI is complete and testable in Simulator. |
+| Day 5 | User A: deterministic native completion passes on Android. User B: iOS native build integrates and compiles; run it on a physical iPhone if available. |
+| Day 8 | A user can conduct a streamed offline text chat on Android; User B verifies the shared UI flow on iOS Simulator. |
+| Day 10 | Android lifecycle/error cases pass on the physical phone. iOS device cases pass if a physical iPhone is available; otherwise, produce an Android-first internal build and keep iOS labelled preview-only. |
 
 ## Sprint 1 — engine room
 
 ### US-1.1 — establish a native-capable app foundation
 
-**Owner:** Developer A  
+**Owner:** User A for Android; User B for iOS build/simulator
 **Priority:** P0  
 **Estimate:** 1 day
 
-**As a developer,** I can build and run the same bare React Native application on physical iOS and Android devices so native local inference can be integrated without a platform rewrite.
+**As a developer,** I can build and run the same bare React Native application on Android hardware and the iOS toolchain so native local inference can be integrated without a platform rewrite.
 
 **Acceptance criteria**
 
 - The repository contains a TypeScript React Native app with the New Architecture configuration explicitly recorded.
 - `llama.rn` is added at a pinned version and linked according to its maintained installation instructions.
-- A Debug build launches on one physical iPhone and one physical Android ARM64 device.
+- User A launches a Debug build on the physical Android ARM64 device.
+- User B launches the iOS build in Simulator. When a physical iPhone is available, User B also launches it there; until then, iOS is explicitly preview-only.
 - iOS and Android native build configuration is committed; no local-only manual changes are needed to reproduce the build.
 - The app presents an Engine Diagnostics screen with app version, OS/device details, available storage, and the `llama.rn` integration status—never user prompt content.
 
@@ -71,7 +80,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-1.2 — publish a controlled model catalog
 
-**Owner:** Developer A, reviewed by Developer B  
+**Owner:** User A, reviewed by User B
 **Priority:** P0  
 **Estimate:** 0.5 day
 
@@ -88,7 +97,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-1.3 — download and validate a model
 
-**Owner:** Developer A  
+**Owner:** User A (Android behavior), User B (shared UI and iOS implementation review)
 **Priority:** P0  
 **Estimate:** 1.5 days
 
@@ -103,11 +112,11 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 - An invalid or partial file is never offered to the inference engine.
 - A completed model remains available after app restart.
 
-**Device test:** lock the screen and background the app during a download on both targets; document the observed OS behavior rather than treating continuation as guaranteed.
+**Device test:** User A locks and backgrounds the Android phone during a download and documents the observed behavior. User B performs the equivalent iOS device test when a physical iPhone is available; Simulator results cannot certify it.
 
 ### US-1.4 — manage downloaded models
 
-**Owner:** Developer B  
+**Owner:** User B
 **Priority:** P1  
 **Estimate:** 0.5 day
 
@@ -121,7 +130,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-1.5 — prove native text inference
 
-**Owner:** Developer A  
+**Owner:** User A (Android proof); User B (iOS integration/proof when an iPhone is available)
 **Priority:** P0  
 **Estimate:** 1.5 days
 
@@ -139,7 +148,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-2.1 — create a basic offline conversation
 
-**Owner:** Developer B  
+**Owner:** User B
 **Priority:** P0  
 **Estimate:** 1 day
 
@@ -155,7 +164,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-2.2 — format prompts for the selected model
 
-**Owner:** Developer B, reviewed by Developer A  
+**Owner:** User B, reviewed by User A
 **Priority:** P0  
 **Estimate:** 0.75 day
 
@@ -170,7 +179,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-2.3 — stream output without freezing the UI
 
-**Owner:** Developer B  
+**Owner:** User B
 **Priority:** P0  
 **Estimate:** 1.25 days
 
@@ -186,7 +195,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-2.4 — make lifecycle and memory behavior safe
 
-**Owner:** Developer A  
+**Owner:** User A (Android); User B (iOS when a physical iPhone is available)
 **Priority:** P0  
 **Estimate:** 1 day
 
@@ -198,13 +207,13 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 - On returning to foreground, the app verifies the context state and offers a clear reload action if it was released or invalidated.
 - Leaving the active chat/model session releases the context using the library’s supported release method.
 - The app does not attempt background inference.
-- Manual tests cover background/foreground during model loading, during generation, and with an idle loaded model on both devices.
+- User A manually tests background/foreground during model loading, during generation, and with an idle loaded model on the Android phone. User B runs the same tests on a physical iPhone when available; iOS Simulator checks only UI state transitions.
 
 **Important:** do not call release merely because a visual route changes if the agreed product experience expects an instant return to the same chat. The first release will release on explicit model switch, memory warning where available, and app background; release-on-navigation is an optional conservative mode to validate after measuring reload time.
 
 ### US-2.5 — finish the MVP experience
 
-**Owner:** Developer B  
+**Owner:** User B
 **Priority:** P1  
 **Estimate:** 1 day
 
@@ -221,7 +230,7 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ### US-3.1 — ask about an image with a compatible model
 
-**Owner:** Both  
+**Owner:** Both, after text MVP passes
 **Priority:** P2  
 **Estimate:** 1–2 days
 
@@ -244,4 +253,4 @@ Both developers pair on the device smoke tests at the end of each day. Merge sma
 
 ## Release gate
 
-The two-week MVP is ready for internal testers when all P0 stories pass on the agreed iPhone and Android test devices, the model can be downloaded/validated/loaded after a fresh install, a 10-turn offline chat streams and persists across a restart, and the background/interruption tests show clear recovery rather than a crash or silent failure.
+The two-week MVP is ready for **Android internal testers** when all P0 stories pass on User A’s Android device, the model can be downloaded/validated/loaded after a fresh install, a 10-turn offline chat streams and persists across a restart, and the background/interruption tests show clear recovery rather than a crash or silent failure. It is ready for **cross-platform internal testers** only when the same device-level evidence exists on a physical iPhone. Until then, label iOS as preview-only.
