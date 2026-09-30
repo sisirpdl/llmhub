@@ -9,6 +9,8 @@ jest.mock('react-native-fs', () => ({
     mkdir: jest.fn(),
     downloadFile: jest.fn(),
     moveFile: jest.fn(),
+    readFile: jest.fn(),
+    writeFile: jest.fn(),
   },
 }))
 jest.mock('react-native-blob-util', () => ({
@@ -27,6 +29,8 @@ const mockUnlink = mockFS.unlink as jest.Mock
 const mockMkdir = mockFS.mkdir as jest.Mock
 const mockDownloadFile = mockFS.downloadFile as jest.Mock
 const mockMoveFile = mockFS.moveFile as jest.Mock
+const mockReadFile = mockFS.readFile as jest.Mock
+const mockWriteFile = mockFS.writeFile as jest.Mock
 const mockHash = mockBlob.fs.hash as jest.Mock
 const mockStat = mockFS.stat as jest.Mock
 const model = SUPPORTED_MODELS[0]
@@ -39,6 +43,8 @@ beforeEach(() => {
   mockMkdir.mockResolvedValue(undefined)
   mockUnlink.mockResolvedValue(undefined)
   mockMoveFile.mockResolvedValue(undefined)
+  mockReadFile.mockResolvedValue(JSON.stringify({manifestVersion: model.manifestVersion, sha256: model.sha256}))
+  mockWriteFile.mockResolvedValue(undefined)
   mockDownloadFile.mockReturnValue({promise: Promise.resolve({statusCode: 200})})
 })
 
@@ -55,6 +61,7 @@ test('promotes a verified temporary download to the final path', async () => {
   expect(mockDownloadFile).toHaveBeenCalledWith(expect.objectContaining({toFile: `${modelPath(model)}.part`}))
   expect(mockHash).toHaveBeenCalledWith(`${modelPath(model)}.part`, 'sha256')
   expect(mockMoveFile).toHaveBeenCalledWith(`${modelPath(model)}.part`, modelPath(model))
+  expect(mockWriteFile).toHaveBeenCalled()
 })
 
 test('does not offer a corrupted or partial existing file as ready', async () => {

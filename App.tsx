@@ -51,7 +51,16 @@ function AppContent() {
         setMessage('The model was released while the app was in the background. Load it again before chatting.')
       }
     })
-    return () => subscription.remove()
+    const memorySubscription = AppState.addEventListener('memoryWarning', () => {
+      if (!context) return
+      context.stopCompletion().catch(() => {}).finally(() => {
+        context.release().catch(() => {})
+        setContext(null)
+        setState('ready')
+        setMessage('The model was released to recover memory. Load it again before chatting.')
+      })
+    })
+    return () => { subscription.remove(); memorySubscription.remove() }
   }, [context, generationActive])
 
   async function handleDownload() {

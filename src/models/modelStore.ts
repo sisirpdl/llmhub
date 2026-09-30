@@ -8,6 +8,7 @@ const MODEL_DIRECTORY = `${RNFS.DocumentDirectoryPath}/models`
 const SAFETY_MARGIN_BYTES = 256 * 1024 * 1024
 
 export function modelPath(model: ModelManifest): string { return `${MODEL_DIRECTORY}/${model.fileName}` }
+export function metadataPath(model: ModelManifest): string { return `${modelPath(model)}.json` }
 
 export async function getAvailableSpace(): Promise<number> {
   const {freeSpace} = await RNFS.getFSInfo()
@@ -22,6 +23,10 @@ export async function isModelReady(model: ModelManifest): Promise<boolean> {
   try {
     const path = modelPath(model)
     if (!(await RNFS.exists(path))) return false
+    const metadataFile = metadataPath(model)
+    if (!(await RNFS.exists(metadataFile))) return false
+    const metadata = JSON.parse(await RNFS.readFile(metadataFile, 'utf8')) as {manifestVersion?: number; sha256?: string}
+    if (metadata.manifestVersion !== model.manifestVersion || metadata.sha256?.toLowerCase() !== model.sha256.toLowerCase()) return false
     const stats = await RNFS.stat(path)
     if (stats.size !== model.byteSize) return false
     const checksum = await RNBlobUtil.fs.hash(path, 'sha256')
@@ -52,11 +57,14 @@ export async function downloadModel(model: ModelManifest, onProgress: (progress:
   }
   if (await RNFS.exists(finalPath)) await RNFS.unlink(finalPath)
   await RNFS.moveFile(temporaryPath, finalPath)
+  await RNFS.writeFile(metadataPath(model), JSON.stringify({manifestVersion: model.manifestVersion, modelId: model.id, sha256: model.sha256}), 'utf8')
 }
 
 export async function deleteModel(model: ModelManifest): Promise<void> {
   const finalPath = modelPath(model)
   const temporaryPath = `${finalPath}.part`
+  const metadataFile = metadataPath(model)
   if (await RNFS.exists(finalPath)) await RNFS.unlink(finalPath)
   if (await RNFS.exists(temporaryPath)) await RNFS.unlink(temporaryPath)
+  if (await RNFS.exists(metadataFile)) await RNFS.unlink(metadataFile)
 }
