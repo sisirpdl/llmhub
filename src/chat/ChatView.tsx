@@ -1,15 +1,18 @@
 import {useEffect, useRef, useState} from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native'
+import {launchImageLibrary} from 'react-native-image-picker'
 import type {LlamaContext, TokenData} from 'llama.rn'
 import {SUPPORTED_MODELS} from '../models/modelCatalog'
-import {supportsVision} from '../models/visionCatalog'
 import {buildPrompt, type PromptMessage} from './promptBuilder'
 
 type Message = {id: string; role: 'user' | 'assistant' | 'system'; content: string}
 type Theme = {card: object; text: object; secondaryText: object; accent: object; primaryButton: object; primaryButtonText: object; secondaryButton: object; secondaryButtonText: object; error: object}
 const STORAGE_KEY = '@llmhub/conversation'
 const SETTINGS_KEY = '@llmhub/chat-settings'
+let chatVisionMode = false
+
+export function setChatVisionMode(enabled: boolean): void { chatVisionMode = enabled }
 
 export function ChatView({context, theme, onGenerationStateChange, onBackgroundRelease}: {context: LlamaContext | null; theme: Theme; onGenerationStateChange?: (active: boolean) => void; onBackgroundRelease?: () => Promise<void>}) {
   const [messages, setMessages] = useState<Message[]>([])
@@ -20,11 +23,12 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
   const [temperature, setTemperature] = useState('0.7')
   const [maxTokens, setMaxTokens] = useState('256')
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const visionCapability = chatVisionMode
   const tokenBuffer = useRef('')
   const activeAssistantId = useRef<string | null>(null)
   const frame = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
   const listRef = useRef<ScrollView>(null)
-  const visionEnabled = supportsVision(SUPPORTED_MODELS[0])
+  const [imageUri, setImageUri] = useState<string | null>(null)
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(value => {
@@ -87,7 +91,7 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
 
   async function sendMessage() {
     const content = draft.trim()
-    if (!content || !context || sending) return
+    if ((!content && !imageUri) || !context || sending) return
     const parsedTemperature = Number(temperature)
     const parsedMaxTokens = Number(maxTokens)
     if (!Number.isFinite(parsedTemperature) || parsedTemperature < 0 || parsedTemperature > 2 || !Number.isInteger(parsedMaxTokens) || parsedMaxTokens < 1 || parsedMaxTokens > 4096) {
@@ -96,17 +100,19 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
     }
     setDraft('')
     setError('')
-    const userMessage: Message = {id: `${Date.now()}-user`, role: 'user', content}
+    const userMessage: Message = {id: `${Date.now()}-user`, role: 'user', content: content || 'Describe this image.'}
     const assistantMessage: Message = {id: `${Date.now()}-assistant`, role: 'assistant', content: ''}
     const nextMessages = [...messages, userMessage, assistantMessage]
     setMessages(nextMessages)
+    setImageUri(null)
     setSending(true)
     activeAssistantId.current = assistantMessage.id
     tokenBuffer.current = ''
     try {
-      const promptResult = buildPrompt(nextMessages.slice(0, -1) as PromptMessage[], SUPPORTED_MODELS[0].promptTemplateId, SUPPORTED_MODELS[0].recommendedContextLength)
+      const promptMessages = imageUri ? [...nextMessages.slice(0, -1), {role: 'user' as const, content: '<__media__>'}] : nextMessages.slice(0, -1)
+      const promptResult = buildPrompt(promptMessages as PromptMessage[], SUPPORTED_MODELS[0].promptTemplateId, SUPPORTED_MODELS[0].recommendedContextLength)
       setOmittedNotice(promptResult.omittedMessageCount > 0 || promptResult.truncatedMessage)
-      const result = await context.completion({prompt: promptResult.prompt, n_predict: parsedMaxTokens, temperature: parsedTemperature}, queueToken)
+      const result = await context.completion({prompt: promptResult.prompt, media_paths: imageUri ? [imageUri] : undefined, n_predict: parsedMaxTokens, temperature: parsedTemperature}, queueToken)
       if (frame.current) cancelAnimationFrame(frame.current)
       flushTokens()
       if (result.text && !tokenBuffer.current) tokenBuffer.current = result.text
@@ -146,7 +152,7 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
     {error ? <Text style={[styles.error, theme.error]}>{error}</Text> : null}
     {omittedNotice ? <Text style={[styles.notice, theme.secondaryText]}>Older complete turns were omitted to fit the model context window.</Text> : null}
     <View style={styles.settings}><Text style={[styles.settingLabel, theme.secondaryText]}>Temperature</Text><TextInput accessibilityLabel="Temperature" keyboardType="decimal-pad" value={temperature} onChangeText={setTemperature} style={[styles.settingInput, theme.card, theme.text]} /><Text style={[styles.settingLabel, theme.secondaryText]}>Max tokens</Text><TextInput accessibilityLabel="Maximum output tokens" keyboardType="number-pad" value={maxTokens} onChangeText={setMaxTokens} style={[styles.settingInput, theme.card, theme.text]} /><Pressable accessibilityLabel="Reset conversation" onPress={resetConversation}><Text style={[styles.resetText, theme.accent]}>Reset</Text></Pressable></View>
-    <View style={styles.composer}>{visionEnabled ? <Pressable accessibilityLabel="Attach image" onPress={() => setError('Image attachment is not available until a tested vision model is installed.')}><Text style={[styles.attachText, theme.accent]}>＋</Text></Pressable> : null}<TextInput accessibilityLabel="Message" value={draft} onChangeText={setDraft} editable={Boolean(context) && !sending} multiline placeholder="Ask something locally" placeholderTextColor="#89938d" style={[styles.input, theme.card, theme.text]} /><Pressable accessibilityLabel={sending ? 'Stop generation' : 'Send message'} disabled={!context || (!sending && !draft.trim())} onPress={sending ? stopGeneration : sendMessage} style={[styles.sendButton, sending ? theme.secondaryButton : theme.primaryButton, (!context || (!sending && !draft.trim())) && styles.disabled]}><Text style={[styles.sendText, sending ? theme.secondaryButtonText : theme.primaryButtonText]}>{sending ? 'Stop' : 'Send'}</Text></Pressable></View>
+    <View style={styles.composer}>{visionCapability ? <Pressable accessibilityLabel="Attach image" onPress={async () => { const result = await launchImageLibrary({mediaType: 'photo', selectionLimit: 1}); const uri = result.assets?.[0]?.uri; if (uri) setImageUri(uri) }}><Text style={[styles.attachText, theme.accent]}>＋</Text></Pressable> : null}<TextInput accessibilityLabel="Message" value={draft} onChangeText={setDraft} editable={Boolean(context) && !sending} multiline placeholder={imageUri ? 'Ask about this image' : 'Ask something locally'} placeholderTextColor="#89938d" style={[styles.input, theme.card, theme.text]} /><Pressable accessibilityLabel={sending ? 'Stop generation' : 'Send message'} disabled={!context || (!sending && !draft.trim() && !imageUri)} onPress={sending ? stopGeneration : sendMessage} style={[styles.sendButton, sending ? theme.secondaryButton : theme.primaryButton, (!context || (!sending && !draft.trim() && !imageUri)) && styles.disabled]}><Text style={[styles.sendText, sending ? theme.secondaryButtonText : theme.primaryButtonText]}>{sending ? 'Stop' : 'Send'}</Text></Pressable></View>
   </View>
 }
 

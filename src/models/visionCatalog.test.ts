@@ -1,7 +1,9 @@
 import {isVisionManifest, SUPPORTED_VISION_MODELS, supportsVision, type VisionManifest} from './visionCatalog'
 
-test('does not expose an untested vision model', () => {
-  expect(SUPPORTED_VISION_MODELS).toHaveLength(0)
+test('declares a separately gated vision model and projector', () => {
+  expect(SUPPORTED_VISION_MODELS).toHaveLength(1)
+  expect(isVisionManifest(SUPPORTED_VISION_MODELS[0])).toBe(true)
+  expect(supportsVision(SUPPORTED_VISION_MODELS[0])).toBe(true)
   expect(supportsVision({promptTemplateId: 'qwen2'})).toBe(false)
 })
 

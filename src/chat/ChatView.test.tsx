@@ -7,6 +7,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {getItem: jest.fn().mockResolvedValue(null), setItem: jest.fn().mockResolvedValue(undefined), removeItem: jest.fn().mockResolvedValue(undefined)},
 }))
+jest.mock('react-native-image-picker', () => ({launchImageLibrary: jest.fn()}))
 
 const theme = {card: {}, text: {}, secondaryText: {}, accent: {}, primaryButton: {}, primaryButtonText: {}, secondaryButton: {}, secondaryButtonText: {}, error: {}}
 

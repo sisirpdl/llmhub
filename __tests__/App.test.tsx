@@ -18,6 +18,7 @@ jest.mock('react-native-fs', () => ({
   },
 }));
 jest.mock('llama.rn', () => ({initLlama: jest.fn(), getBackendDevicesInfo: jest.fn().mockResolvedValue([])}));
+jest.mock('react-native-image-picker', () => ({launchImageLibrary: jest.fn()}));
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
