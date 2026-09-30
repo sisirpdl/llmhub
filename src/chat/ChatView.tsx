@@ -8,6 +8,7 @@ import {buildPrompt, type PromptMessage} from './promptBuilder'
 type Message = {id: string; role: 'user' | 'assistant' | 'system'; content: string}
 type Theme = {card: object; text: object; secondaryText: object; accent: object; primaryButton: object; primaryButtonText: object; secondaryButton: object; secondaryButtonText: object; error: object}
 const STORAGE_KEY = '@llmhub/conversation'
+const SETTINGS_KEY = '@llmhub/chat-settings'
 
 export function ChatView({context, theme, onGenerationStateChange, onBackgroundRelease}: {context: LlamaContext | null; theme: Theme; onGenerationStateChange?: (active: boolean) => void; onBackgroundRelease?: () => Promise<void>}) {
   const [messages, setMessages] = useState<Message[]>([])
@@ -17,6 +18,7 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
   const [omittedNotice, setOmittedNotice] = useState(false)
   const [temperature, setTemperature] = useState('0.7')
   const [maxTokens, setMaxTokens] = useState('256')
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const tokenBuffer = useRef('')
   const activeAssistantId = useRef<string | null>(null)
   const frame = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
@@ -27,12 +29,26 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
       if (!value) return
       try { setMessages(JSON.parse(value) as Message[]) } catch { setError('Saved conversation could not be restored.') }
     }).catch(() => setError('Saved conversation could not be restored.'))
+    AsyncStorage.getItem(SETTINGS_KEY).then(value => {
+      if (value) {
+        try {
+          const settings = JSON.parse(value) as {temperature?: string; maxTokens?: string}
+          if (settings.temperature) setTemperature(settings.temperature)
+          if (settings.maxTokens) setMaxTokens(settings.maxTokens)
+        } catch { setError('Saved generation settings could not be restored.') }
+      }
+      setSettingsLoaded(true)
+    }).catch(() => { setSettingsLoaded(true); setError('Saved generation settings could not be restored.') })
     return () => { if (frame.current) cancelAnimationFrame(frame.current) }
   }, [])
 
   useEffect(() => {
     if (messages.length) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(messages)).catch(() => setError('Conversation could not be saved.'))
   }, [messages])
+
+  useEffect(() => {
+    if (settingsLoaded) AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({temperature, maxTokens})).catch(() => setError('Generation settings could not be saved.'))
+  }, [maxTokens, settingsLoaded, temperature])
 
   useEffect(() => {
     onGenerationStateChange?.(sending)
