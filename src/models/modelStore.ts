@@ -19,15 +19,19 @@ export async function hasEnoughSpace(model: ModelManifest): Promise<boolean> {
 }
 
 export async function isModelReady(model: ModelManifest): Promise<boolean> {
-  const path = modelPath(model)
-  if (!(await RNFS.exists(path))) return false
-  const stats = await RNFS.stat(path)
-  if (stats.size !== model.byteSize) return false
-  const checksum = await RNBlobUtil.fs.hash(path, 'sha256')
-  return checksum.toLowerCase() === model.sha256.toLowerCase()
+  try {
+    const path = modelPath(model)
+    if (!(await RNFS.exists(path))) return false
+    const stats = await RNFS.stat(path)
+    if (stats.size !== model.byteSize) return false
+    const checksum = await RNBlobUtil.fs.hash(path, 'sha256')
+    return checksum.toLowerCase() === model.sha256.toLowerCase()
+  } catch {
+    return false
+  }
 }
 
-export async function downloadModel(model: ModelManifest, onProgress: (progress: DownloadProgress) => void): Promise<void> {
+export async function downloadModel(model: ModelManifest, onProgress: (progress: DownloadProgress) => void, onValidationStart?: () => void): Promise<void> {
   if (!(await hasEnoughSpace(model))) throw new Error('Not enough free space. Remove another model or free storage and retry.')
   await RNFS.mkdir(MODEL_DIRECTORY)
   const temporaryPath = `${modelPath(model)}.part`
@@ -40,6 +44,7 @@ export async function downloadModel(model: ModelManifest, onProgress: (progress:
     progress: ({bytesWritten, contentLength}) => onProgress({bytesWritten, totalBytes: contentLength || model.byteSize}),
   }).promise
   if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(`Download failed with HTTP ${result.statusCode}.`)
+  onValidationStart?.()
   const checksum = await RNBlobUtil.fs.hash(temporaryPath, 'sha256')
   if (checksum.toLowerCase() !== model.sha256.toLowerCase()) {
     await RNFS.unlink(temporaryPath)
