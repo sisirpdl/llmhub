@@ -59,7 +59,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 
 ## Sprint 1 — engine room
 
-### US-1.1 — establish a native-capable app foundation
+### [x] US-1.1 — establish a native-capable app foundation
 
 **Owner:** User A for Android; User B for iOS build/simulator
 **Priority:** P0  
@@ -78,7 +78,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 
 **Out of scope:** chat UI polish, model downloads, and benchmark claims.
 
-### US-1.2 — publish a controlled model catalog
+### [x] US-1.2 — publish a controlled model catalog
 
 **Owner:** User A, reviewed by User B
 **Priority:** P0  
@@ -95,7 +95,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 
 **Out of scope:** arbitrary Hugging Face URLs, user-imported models, and model conversion.
 
-### US-1.3 — download and validate a model
+### [x] US-1.3 — download and validate a model
 
 **Owner:** User A (Android behavior), User B (shared UI and iOS implementation review)
 **Priority:** P0  
@@ -114,7 +114,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 
 **Device test:** User A locks and backgrounds the Android phone during a download and documents the observed behavior. User B performs the equivalent iOS device test when a physical iPhone is available; Simulator results cannot certify it.
 
-### US-1.4 — manage downloaded models
+### [x] US-1.4 — manage downloaded models
 
 **Owner:** User B
 **Priority:** P1  
@@ -128,7 +128,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 - Delete requires confirmation, releases an active context first, removes the GGUF and its metadata, and refreshes available storage.
 - The active model cannot be deleted while generating; the user is prompted to stop generation first.
 
-### US-1.5 — prove native text inference
+### [x] US-1.5 — prove native text inference
 
 **Owner:** User A (Android proof); User B (iOS integration/proof when an iPhone is available)
 **Priority:** P0  
@@ -146,7 +146,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 
 ## Sprint 2 — usable local chat
 
-### US-2.1 — create a basic offline conversation
+### [x] US-2.1 — create a basic offline conversation
 
 **Owner:** User B
 **Priority:** P0  
@@ -162,7 +162,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 - Conversation state is kept locally and is restored after relaunch.
 - The implementation uses a lightweight custom UI first; do not add a chat framework unless it demonstrably reduces work without conflicting with streamed updates.
 
-### US-2.2 — format prompts for the selected model
+### [x] US-2.2 — format prompts for the selected model
 
 **Owner:** User B, reviewed by User A
 **Priority:** P0  
@@ -177,7 +177,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 - Unit tests cover empty conversation, system prompt, alternating turns, a prior assistant response, and special-character user input.
 - The app applies a documented context-window policy: retain the system prompt and most recent complete turns, display a notice when old turns are omitted, and never silently corrupt turn order.
 
-### US-2.3 — stream output without freezing the UI
+### [x] US-2.3 — stream output without freezing the UI
 
 **Owner:** User B
 **Priority:** P0  
@@ -193,7 +193,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 - A visible Stop control cancels the active completion, retains the partial response, and restores the composer.
 - A device test with a response of at least 500 generated tokens shows no sustained UI freeze.
 
-### US-2.4 — make lifecycle and memory behavior safe
+### [x] US-2.4 — make lifecycle and memory behavior safe
 
 **Owner:** User A (Android); User B (iOS when a physical iPhone is available)
 **Priority:** P0  
@@ -211,7 +211,7 @@ Use short-lived feature branches and small pull requests. User A must provide an
 
 **Important:** do not call release merely because a visual route changes if the agreed product experience expects an instant return to the same chat. The first release will release on explicit model switch, memory warning where available, and app background; release-on-navigation is an optional conservative mode to validate after measuring reload time.
 
-### US-2.5 — finish the MVP experience
+### [x] US-2.5 — finish the MVP experience
 
 **Owner:** User B
 **Priority:** P1  
