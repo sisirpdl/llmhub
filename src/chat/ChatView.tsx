@@ -57,7 +57,12 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState !== 'active' && sending && context) {
-        context.stopCompletion().then(() => onBackgroundRelease?.()).catch(() => {})
+        context.stopCompletion().then(() => {
+          if (frame.current) cancelAnimationFrame(frame.current)
+          flushTokens()
+          activeAssistantId.current = null
+          return onBackgroundRelease?.()
+        }).catch(() => {})
         setSending(false)
         setError('Generation was interrupted when the app left the foreground.')
       }
