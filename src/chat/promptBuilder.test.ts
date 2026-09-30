@@ -31,3 +31,10 @@ test('omits only old complete turns when the context budget is exceeded', () => 
   expect(result.prompt).toContain('latest')
   expect(result.prompt).toContain('old reply')
 })
+
+test('keeps an oversized newest turn represented instead of dropping it silently', () => {
+  const result = build([{role: 'user', content: 'prefix '.repeat(2000)}], 512)
+  expect(result.truncatedMessage).toBe(true)
+  expect(result.omittedMessageCount).toBe(0)
+  expect(result.prompt).toContain('<|im_start|>user')
+})

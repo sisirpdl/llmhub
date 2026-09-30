@@ -98,7 +98,7 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
     tokenBuffer.current = ''
     try {
       const promptResult = buildPrompt(nextMessages.slice(0, -1) as PromptMessage[], SUPPORTED_MODELS[0].promptTemplateId, SUPPORTED_MODELS[0].recommendedContextLength)
-      setOmittedNotice(promptResult.omittedMessageCount > 0)
+      setOmittedNotice(promptResult.omittedMessageCount > 0 || promptResult.truncatedMessage)
       const result = await context.completion({prompt: promptResult.prompt, n_predict: parsedMaxTokens, temperature: parsedTemperature}, queueToken)
       if (frame.current) cancelAnimationFrame(frame.current)
       flushTokens()
