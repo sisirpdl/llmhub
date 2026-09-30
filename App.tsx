@@ -7,7 +7,7 @@ import {SUPPORTED_MODELS, isValidManifest} from './src/models/modelCatalog'
 import {deleteModel, downloadModel, getAvailableSpace, isModelReady, modelPath} from './src/models/modelStore'
 import {ChatView} from './src/chat/ChatView'
 
-type ModelState = 'not-downloaded' | 'downloading' | 'ready' | 'loading' | 'active' | 'failed'
+type ModelState = 'not-downloaded' | 'downloading' | 'ready' | 'loading' | 'active' | 'failed' | 'load-failed'
 type Theme = typeof lightTheme
 
 function App() {
@@ -29,6 +29,7 @@ function AppContent() {
   const [loadDuration, setLoadDuration] = useState<number | null>(null)
   const [completionDuration, setCompletionDuration] = useState<number | null>(null)
   const [onboarding, setOnboarding] = useState<boolean | null>(null)
+  const [generationActive, setGenerationActive] = useState(false)
 
   const refreshStatus = useCallback(async () => {
     setFreeSpace(await getAvailableSpace())
@@ -42,7 +43,7 @@ function AppContent() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
-      if (nextState !== 'active' && context) {
+      if (nextState !== 'active' && context && !generationActive) {
         context.release().catch(() => {})
         setContext(null)
         setState(current => current === 'active' ? 'ready' : current)
@@ -50,7 +51,7 @@ function AppContent() {
       }
     })
     return () => subscription.remove()
-  }, [context])
+  }, [context, generationActive])
 
   async function handleDownload() {
     if (!isValidManifest(model)) return setMessage('This model manifest is incomplete and cannot be selected.')
@@ -61,7 +62,7 @@ function AppContent() {
       setState('ready')
       await refreshStatus()
     } catch (error) {
-      setState('failed')
+      setState('load-failed')
       setMessage(error instanceof Error ? error.message : 'Download failed. Retry when online.')
     }
   }
@@ -95,6 +96,10 @@ function AppContent() {
   }
 
   function handleDelete() {
+    if (generationActive) {
+      setMessage('Stop generation before deleting the active model.')
+      return
+    }
     Alert.alert('Delete downloaded model?', 'The GGUF file will be removed from app storage.', [
       {text: 'Cancel', style: 'cancel'},
       {text: 'Delete', style: 'destructive', onPress: async () => {
@@ -114,12 +119,12 @@ function AppContent() {
   return <View style={[styles.screen, theme.screen, {paddingTop: insets.top + 20, paddingBottom: insets.bottom + 12}]}>
     <View style={styles.header}><View><Text style={[styles.kicker, theme.accent]}>LLMHUB / LOCAL RUNTIME</Text><Text style={[styles.title, theme.text]}>Your models.</Text></View><View style={[styles.storagePill, theme.storagePill]}><Text style={[styles.storageText, theme.secondaryText]}>{storage}</Text></View></View>
     <View style={[styles.tabs, theme.tabs]}><Tab label="Models" active={tab === 'models'} onPress={() => setTab('models')} theme={theme} /><Tab label="Chat" active={tab === 'chat'} onPress={() => setTab('chat')} theme={theme} /><Tab label="Diagnostics" active={tab === 'diagnostics'} onPress={() => setTab('diagnostics')} theme={theme} /></View>
-    {tab === 'models' ? <ScrollView contentContainerStyle={styles.content}><Text style={[styles.sectionLabel, theme.secondaryText]}>SUPPORTED CATALOG / 01</Text><View style={[styles.modelCard, theme.card]}><View style={styles.cardTop}><View style={[styles.modelGlyph, theme.glyph]}><Text style={styles.glyphText}>Q</Text></View><StatusBadge state={state} theme={theme} /></View><Text style={[styles.modelName, theme.text]}>{model.displayName}</Text><Text style={[styles.modelDescription, theme.secondaryText]}>Text-only GGUF · Q4_K_M quantization</Text><View style={styles.metadata}><Meta label="SIZE" value={`${(model.byteSize / 1024 / 1024 / 1024).toFixed(2)} GB`} theme={theme} /><Meta label="CONTEXT" value={`${model.recommendedContextLength} tokens`} theme={theme} /><Meta label="LICENSE" value={model.license} theme={theme} /></View>{state === 'downloading' ? <View><View style={[styles.progressTrack, theme.progressTrack]}><View style={[styles.progressBar, {width: `${percentage}%`}]} /></View><Text style={[styles.progressLabel, theme.secondaryText]}>{percentage}% downloaded</Text></View> : null}{message ? <Text style={[styles.message, state === 'active' ? theme.success : theme.error]}>{message}</Text> : null}<View style={styles.actions}>{state === 'not-downloaded' || state === 'failed' ? <ActionButton label={state === 'failed' ? 'Retry download' : 'Download model'} onPress={handleDownload} primary theme={theme} /> : null}{state === 'ready' ? <ActionButton label="Load model" onPress={handleLoad} primary theme={theme} /> : null}{state === 'loading' ? <ActionButton label="Loading..." onPress={() => {}} theme={theme} /> : null}{state === 'active' ? <ActionButton label="Active" onPress={() => {}} primary theme={theme} /> : null}{state === 'ready' || state === 'active' || state === 'failed' ? <ActionButton label="Delete" onPress={handleDelete} theme={theme} /> : null}</View><Pressable onPress={() => Linking.openURL(model.sourceUrl)}><Text style={[styles.source, theme.accent]}>View source and compatibility notes  ↗</Text></Pressable></View><Text style={[styles.disclaimer, theme.secondaryText]}>Performance and memory use vary by device. Downloads require internet; models, prompts, and conversations stay on this device.</Text></ScrollView> : tab === 'chat' ? <ChatView context={context} theme={theme} /> : <Diagnostics theme={theme} freeSpace={storage} state={state} loadDuration={loadDuration} completionDuration={completionDuration} />}
+    {tab === 'models' ? <ScrollView contentContainerStyle={styles.content}><Text style={[styles.sectionLabel, theme.secondaryText]}>SUPPORTED CATALOG / 01</Text><View style={[styles.modelCard, theme.card]}><View style={styles.cardTop}><View style={[styles.modelGlyph, theme.glyph]}><Text style={styles.glyphText}>Q</Text></View><StatusBadge state={state} theme={theme} /></View><Text style={[styles.modelName, theme.text]}>{model.displayName}</Text><Text style={[styles.modelDescription, theme.secondaryText]}>Text-only GGUF · Q4_K_M quantization</Text><View style={styles.metadata}><Meta label="SIZE" value={`${(model.byteSize / 1024 / 1024 / 1024).toFixed(2)} GB`} theme={theme} /><Meta label="CONTEXT" value={`${model.recommendedContextLength} tokens`} theme={theme} /><Meta label="LICENSE" value={model.license} theme={theme} /></View>{state === 'downloading' ? <View><View style={[styles.progressTrack, theme.progressTrack]}><View style={[styles.progressBar, {width: `${percentage}%`}]} /></View><Text style={[styles.progressLabel, theme.secondaryText]}>{percentage}% downloaded</Text></View> : null}{message ? <Text style={[styles.message, state === 'active' ? theme.success : theme.error]}>{message}</Text> : null}<View style={styles.actions}>{state === 'not-downloaded' || state === 'failed' ? <ActionButton label={state === 'failed' ? 'Retry download' : 'Download model'} onPress={handleDownload} primary theme={theme} /> : null}{state === 'ready' || state === 'load-failed' ? <ActionButton label={state === 'load-failed' ? 'Retry load' : 'Load model'} onPress={handleLoad} primary theme={theme} /> : null}{state === 'loading' ? <ActionButton label="Loading..." onPress={() => {}} theme={theme} /> : null}{state === 'active' ? <ActionButton label="Active" onPress={() => {}} primary theme={theme} /> : null}{state === 'ready' || state === 'active' || state === 'load-failed' ? <ActionButton label="Delete" onPress={handleDelete} theme={theme} /> : null}</View><Pressable onPress={() => Linking.openURL(model.sourceUrl)}><Text style={[styles.source, theme.accent]}>View source and compatibility notes  ↗</Text></Pressable></View><Text style={[styles.disclaimer, theme.secondaryText]}>Performance and memory use vary by device. Downloads require internet; models, prompts, and conversations stay on this device.</Text></ScrollView> : tab === 'chat' ? <ChatView context={context} theme={theme} onGenerationStateChange={setGenerationActive} onBackgroundRelease={async () => { if (context) { await context.release(); setContext(null); setState('ready'); setMessage('The model was released while the app was in the background. Load it again before chatting.') } }} /> : <Diagnostics theme={theme} freeSpace={storage} state={state} loadDuration={loadDuration} completionDuration={completionDuration} />}
   </View>
 }
 
 function Tab({label, active, onPress, theme}: {label: string; active: boolean; onPress: () => void; theme: Theme}) { return <Pressable onPress={onPress} style={[styles.tab, active && theme.activeTab]}><Text style={[styles.tabText, theme.secondaryText, active && theme.text]}>{label}</Text></Pressable> }
-function StatusBadge({state, theme}: {state: ModelState; theme: Theme}) { const labels: Record<ModelState, string> = {'not-downloaded': 'NOT DOWNLOADED', downloading: 'DOWNLOADING', ready: 'READY', loading: 'LOADING', active: 'ACTIVE', failed: 'FAILED'}; return <View style={[styles.badge, state === 'active' && theme.activeBadge, state === 'failed' && theme.failedBadge]}><Text style={[styles.badgeText, theme.badgeText]}>{labels[state]}</Text></View> }
+function StatusBadge({state, theme}: {state: ModelState; theme: Theme}) { const labels: Record<ModelState, string> = {'not-downloaded': 'NOT DOWNLOADED', downloading: 'DOWNLOADING', ready: 'READY', loading: 'LOADING', active: 'ACTIVE', failed: 'FAILED', 'load-failed': 'LOAD FAILED'}; return <View style={[styles.badge, state === 'active' && theme.activeBadge, (state === 'failed' || state === 'load-failed') && theme.failedBadge]}><Text style={[styles.badgeText, theme.badgeText]}>{labels[state]}</Text></View> }
 function Meta({label, value, theme}: {label: string; value: string; theme: Theme}) { return <View style={styles.meta}><Text style={[styles.metaLabel, theme.secondaryText]}>{label}</Text><Text style={[styles.metaValue, theme.text]}>{value}</Text></View> }
 function ActionButton({label, onPress, primary, theme}: {label: string; onPress: () => void; primary?: boolean; theme: Theme}) { return <Pressable onPress={onPress} style={[styles.button, primary ? theme.primaryButton : theme.secondaryButton]}><Text style={[styles.buttonText, primary ? theme.primaryButtonText : theme.secondaryButtonText]}>{label}</Text></Pressable> }
 function Diagnostics({theme, freeSpace, state, loadDuration, completionDuration}: {theme: Theme; freeSpace: string; state: ModelState; loadDuration: number | null; completionDuration: number | null}) { return <ScrollView contentContainerStyle={styles.content}><Text style={[styles.sectionLabel, theme.secondaryText]}>ENGINE HEALTH / LIVE</Text><View style={[styles.diagnosticCard, theme.card]}><DiagnosticRow label="Platform" value={`${Platform.OS} ${String(Platform.Version)}`} theme={theme} /><DiagnosticRow label="llama.rn" value="0.12.0 · linked" theme={theme} /><DiagnosticRow label="New Architecture" value="enabled" theme={theme} /><DiagnosticRow label="Model state" value={state} theme={theme} /><DiagnosticRow label="Storage" value={freeSpace} theme={theme} /><DiagnosticRow label="Last load" value={loadDuration === null ? 'Not run' : `${loadDuration} ms`} theme={theme} /><DiagnosticRow label="Last completion" value={completionDuration === null ? 'Not run' : `${completionDuration} ms`} theme={theme} /></View><Text style={[styles.disclaimer, theme.secondaryText]}>Diagnostics never include prompt content. Native load and completion timings stay local to this device.</Text></ScrollView> }

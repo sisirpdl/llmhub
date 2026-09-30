@@ -9,7 +9,7 @@ type Message = {id: string; role: 'user' | 'assistant' | 'system'; content: stri
 type Theme = {card: object; text: object; secondaryText: object; accent: object; primaryButton: object; primaryButtonText: object; secondaryButton: object; secondaryButtonText: object; error: object}
 const STORAGE_KEY = '@llmhub/conversation'
 
-export function ChatView({context, theme}: {context: LlamaContext | null; theme: Theme}) {
+export function ChatView({context, theme, onGenerationStateChange, onBackgroundRelease}: {context: LlamaContext | null; theme: Theme; onGenerationStateChange?: (active: boolean) => void; onBackgroundRelease?: () => Promise<void>}) {
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -35,15 +35,19 @@ export function ChatView({context, theme}: {context: LlamaContext | null; theme:
   }, [messages])
 
   useEffect(() => {
+    onGenerationStateChange?.(sending)
+  }, [onGenerationStateChange, sending])
+
+  useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState !== 'active' && sending && context) {
-        context.stopCompletion().catch(() => {})
+        context.stopCompletion().then(() => onBackgroundRelease?.()).catch(() => {})
         setSending(false)
         setError('Generation was interrupted when the app left the foreground.')
       }
     })
     return () => subscription.remove()
-  }, [context, sending])
+  }, [context, onBackgroundRelease, sending])
 
   function flushTokens() {
     frame.current = null
