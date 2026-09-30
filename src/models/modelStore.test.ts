@@ -1,0 +1,62 @@
+jest.mock('react-native-fs', () => ({
+  __esModule: true,
+  default: {
+    DocumentDirectoryPath: '/documents',
+    getFSInfo: jest.fn(),
+    exists: jest.fn(),
+    unlink: jest.fn(),
+    mkdir: jest.fn(),
+    downloadFile: jest.fn(),
+    moveFile: jest.fn(),
+  },
+}))
+jest.mock('react-native-blob-util', () => ({
+  __esModule: true,
+  default: {fs: {hash: jest.fn()}},
+}))
+
+import {SUPPORTED_MODELS} from './modelCatalog'
+import {downloadModel, hasEnoughSpace, modelPath} from './modelStore'
+
+const mockFS = jest.requireMock('react-native-fs').default
+const mockBlob = jest.requireMock('react-native-blob-util').default
+const mockGetFSInfo = mockFS.getFSInfo as jest.Mock
+const mockExists = mockFS.exists as jest.Mock
+const mockUnlink = mockFS.unlink as jest.Mock
+const mockMkdir = mockFS.mkdir as jest.Mock
+const mockDownloadFile = mockFS.downloadFile as jest.Mock
+const mockMoveFile = mockFS.moveFile as jest.Mock
+const mockHash = mockBlob.fs.hash as jest.Mock
+const model = SUPPORTED_MODELS[0]
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockGetFSInfo.mockResolvedValue({freeSpace: model.byteSize + 256 * 1024 * 1024})
+  mockExists.mockResolvedValue(false)
+  mockMkdir.mockResolvedValue(undefined)
+  mockUnlink.mockResolvedValue(undefined)
+  mockMoveFile.mockResolvedValue(undefined)
+  mockDownloadFile.mockReturnValue({promise: Promise.resolve({statusCode: 200})})
+})
+
+test('requires model bytes plus the safety margin', async () => {
+  expect(await hasEnoughSpace(model)).toBe(true)
+  mockGetFSInfo.mockResolvedValue({freeSpace: model.byteSize + 256 * 1024 * 1024 - 1})
+  expect(await hasEnoughSpace(model)).toBe(false)
+})
+
+test('promotes a verified temporary download to the final path', async () => {
+  mockHash.mockResolvedValue(model.sha256)
+  const progress = jest.fn()
+  await downloadModel(model, progress)
+  expect(mockDownloadFile).toHaveBeenCalledWith(expect.objectContaining({toFile: `${modelPath(model)}.part`}))
+  expect(mockHash).toHaveBeenCalledWith(`${modelPath(model)}.part`, 'sha256')
+  expect(mockMoveFile).toHaveBeenCalledWith(`${modelPath(model)}.part`, modelPath(model))
+})
+
+test('removes an invalid download and never promotes it', async () => {
+  mockHash.mockResolvedValue('bad-checksum')
+  await expect(downloadModel(model, jest.fn())).rejects.toThrow('Checksum verification failed')
+  expect(mockUnlink).toHaveBeenCalledWith(`${modelPath(model)}.part`)
+  expect(mockMoveFile).not.toHaveBeenCalled()
+})
