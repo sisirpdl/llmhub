@@ -17,7 +17,7 @@ jest.mock('react-native-fs', () => ({
     exists: jest.fn().mockResolvedValue(false),
   },
 }));
-jest.mock('llama.rn', () => ({initLlama: jest.fn()}));
+jest.mock('llama.rn', () => ({initLlama: jest.fn(), getBackendDevicesInfo: jest.fn().mockResolvedValue([])}));
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
