@@ -18,7 +18,14 @@ export async function hasEnoughSpace(model: ModelManifest): Promise<boolean> {
   return (await getAvailableSpace()) >= model.byteSize + SAFETY_MARGIN_BYTES
 }
 
-export async function isModelReady(model: ModelManifest): Promise<boolean> { return RNFS.exists(modelPath(model)) }
+export async function isModelReady(model: ModelManifest): Promise<boolean> {
+  const path = modelPath(model)
+  if (!(await RNFS.exists(path))) return false
+  const stats = await RNFS.stat(path)
+  if (stats.size !== model.byteSize) return false
+  const checksum = await RNBlobUtil.fs.hash(path, 'sha256')
+  return checksum.toLowerCase() === model.sha256.toLowerCase()
+}
 
 export async function downloadModel(model: ModelManifest, onProgress: (progress: DownloadProgress) => void): Promise<void> {
   if (!(await hasEnoughSpace(model))) throw new Error('Not enough free space. Remove another model or free storage and retry.')

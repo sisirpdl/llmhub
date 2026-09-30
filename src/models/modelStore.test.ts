@@ -4,6 +4,7 @@ jest.mock('react-native-fs', () => ({
     DocumentDirectoryPath: '/documents',
     getFSInfo: jest.fn(),
     exists: jest.fn(),
+    stat: jest.fn(),
     unlink: jest.fn(),
     mkdir: jest.fn(),
     downloadFile: jest.fn(),
@@ -16,7 +17,7 @@ jest.mock('react-native-blob-util', () => ({
 }))
 
 import {SUPPORTED_MODELS} from './modelCatalog'
-import {downloadModel, hasEnoughSpace, modelPath} from './modelStore'
+import {downloadModel, hasEnoughSpace, isModelReady, modelPath} from './modelStore'
 
 const mockFS = jest.requireMock('react-native-fs').default
 const mockBlob = jest.requireMock('react-native-blob-util').default
@@ -27,12 +28,14 @@ const mockMkdir = mockFS.mkdir as jest.Mock
 const mockDownloadFile = mockFS.downloadFile as jest.Mock
 const mockMoveFile = mockFS.moveFile as jest.Mock
 const mockHash = mockBlob.fs.hash as jest.Mock
+const mockStat = mockFS.stat as jest.Mock
 const model = SUPPORTED_MODELS[0]
 
 beforeEach(() => {
   jest.clearAllMocks()
   mockGetFSInfo.mockResolvedValue({freeSpace: model.byteSize + 256 * 1024 * 1024})
   mockExists.mockResolvedValue(false)
+  mockStat.mockResolvedValue({size: model.byteSize})
   mockMkdir.mockResolvedValue(undefined)
   mockUnlink.mockResolvedValue(undefined)
   mockMoveFile.mockResolvedValue(undefined)
@@ -52,6 +55,15 @@ test('promotes a verified temporary download to the final path', async () => {
   expect(mockDownloadFile).toHaveBeenCalledWith(expect.objectContaining({toFile: `${modelPath(model)}.part`}))
   expect(mockHash).toHaveBeenCalledWith(`${modelPath(model)}.part`, 'sha256')
   expect(mockMoveFile).toHaveBeenCalledWith(`${modelPath(model)}.part`, modelPath(model))
+})
+
+test('does not offer a corrupted or partial existing file as ready', async () => {
+  mockExists.mockResolvedValue(true)
+  mockStat.mockResolvedValue({size: model.byteSize - 1})
+  expect(await isModelReady(model)).toBe(false)
+  mockStat.mockResolvedValue({size: model.byteSize})
+  mockHash.mockResolvedValue('bad-checksum')
+  expect(await isModelReady(model)).toBe(false)
 })
 
 test('removes an invalid download and never promotes it', async () => {

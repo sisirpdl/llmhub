@@ -1,6 +1,7 @@
 export type PromptTemplateId = 'qwen2'
 
 export type ModelManifest = {
+  manifestVersion: number
   id: string
   displayName: string
   fileName: string
@@ -16,6 +17,7 @@ export type ModelManifest = {
 
 export const SUPPORTED_MODELS: ModelManifest[] = [
   {
+    manifestVersion: 1,
     id: 'qwen2.5-1.5b-instruct-q4_k_m',
     displayName: 'Qwen2.5 1.5B Instruct',
     fileName: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
@@ -32,10 +34,10 @@ export const SUPPORTED_MODELS: ModelManifest[] = [
 
 export function isValidManifest(model: ModelManifest): boolean {
   return Boolean(
-    model.id && model.displayName && model.fileName.endsWith('.gguf') &&
+    model.manifestVersion > 0 && model.id && model.displayName && model.fileName.endsWith('.gguf') &&
       model.url.startsWith('https://') && model.byteSize > 0 &&
       /^[a-f0-9]{64}$/i.test(model.sha256) && model.license &&
       model.sourceUrl.startsWith('https://') && model.promptTemplateId &&
-      model.recommendedContextLength > 0,
+      model.recommendedContextLength > 0 && model.testedDeviceProfile,
   )
 }
