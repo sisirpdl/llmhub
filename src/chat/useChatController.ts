@@ -271,7 +271,7 @@ export function useChatController({
         : turns;
       const result = buildPrompt(
         promptTurns,
-        model.promptTemplateId,
+        model.promptTemplateId === 'native' ? 'qwen2' : model.promptTemplateId,
         model.recommendedContextLength,
       );
       setOmittedNotice(
@@ -279,10 +279,33 @@ export function useChatController({
       );
       const completion = await context.completion(
         {
-          prompt: result.prompt,
+          ...(model.promptTemplateId === 'native'
+            ? {
+                messages: result.messages.map(
+                  ({ role, content: messageContent }, index) =>
+                    uri && index === result.messages.length - 1
+                      ? {
+                          role,
+                          content: [
+                            {
+                              type: 'text' as const,
+                              text: messageContent.replace('\n<__media__>', ''),
+                            },
+                            {
+                              type: 'image_url' as const,
+                              image_url: { url: uri },
+                            },
+                          ],
+                        }
+                      : { role, content: messageContent },
+                ),
+              }
+            : { prompt: result.prompt }),
           n_predict: tokens,
           temperature: temp,
-          ...(uri ? { media_paths: [uri] } : {}),
+          ...(uri && model.promptTemplateId !== 'native'
+            ? { media_paths: [uri] }
+            : {}),
         },
         queueToken,
       );

@@ -1,3 +1,10 @@
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 import React from 'react';
 import Renderer from 'react-test-renderer';
 import { AppState } from 'react-native';

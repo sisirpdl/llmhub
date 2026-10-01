@@ -7,15 +7,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import {
-  CATALOG,
   isVision,
   type ModelController,
   type ModelState,
 } from '../app/useModelController';
+import { isImported } from './importedModels';
+import { quantization } from './huggingFace';
 import type { ModelManifest } from './modelCatalog';
 import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
@@ -53,9 +53,11 @@ export function ModelCard({
   const working = ['checking', 'downloading', 'validating', 'loading'].includes(
     state,
   );
-  const anyWorking = Object.values(controller.states).some(value =>
-    ['downloading', 'validating', 'loading'].includes(value),
-  );
+  const anyWorking =
+    controller.importing ||
+    Object.values(controller.states).some(value =>
+      ['downloading', 'validating', 'loading'].includes(value),
+    );
   const label =
     state === 'active'
       ? 'Offload'
@@ -73,6 +75,12 @@ export function ModelCard({
     }
     if (downloaded(state)) {
       controller.load(model);
+      return;
+    }
+    if (isImported(model) && model.origin === 'local') {
+      controller.setNotice(
+        'The local file is missing. Add it again using Add local model.',
+      );
       return;
     }
     controller.download(model);
@@ -96,7 +104,7 @@ export function ModelCard({
           {model.displayName}
         </Text>
         <Text style={[styles.size, { color: colors.muted }]}>
-          {formatBytes(model.byteSize)}
+          {model.byteSize ? formatBytes(model.byteSize) : 'Unknown size'}
         </Text>
         <View
           accessibilityLabel={labels[state]}
@@ -122,7 +130,11 @@ export function ModelCard({
               <ActivityIndicator size="small" color={colors.accent} />
               <Text style={{ color: colors.muted }}>
                 {labels[state]}
-                {state === 'downloading' ? ` · ${percentage}%` : '…'}
+                {state === 'downloading'
+                  ? p?.total
+                    ? ` · ${percentage}%`
+                    : '…'
+                  : '…'}
               </Text>
             </View>
           ) : (
@@ -151,7 +163,7 @@ export function ModelCard({
             onPress={onChat}
           />
         ) : null}
-        {downloaded(state) ? (
+        {downloaded(state) || isImported(model) ? (
           <IconButton
             name="trash"
             label={`Delete ${model.displayName}`}
@@ -186,7 +198,9 @@ export function ModelCard({
           </View>
           <Text style={[styles.progressText, { color: colors.muted }]}>
             {p
-              ? `${formatBytes(p.bytes)} / ${formatBytes(p.total)}`
+              ? `${formatBytes(p.bytes)}${
+                  p.total ? ' / ' + formatBytes(p.total) : ''
+                }`
               : 'Preparing download…'}{' '}
             · {labels[state]}
           </Text>
@@ -203,8 +217,10 @@ export function ModelCard({
       {expanded ? (
         <View style={[styles.details, { borderColor: colors.border }]}>
           <Text style={[styles.detailText, { color: colors.muted }]}>
-            {labels[state]} ·{' '}
-            {isVision(model) ? 'Vision preview · Q4_K_M' : 'Text · Q4_K_M'}
+            {labels[state]} · {isVision(model) ? 'Vision' : 'Text'} ·{' '}
+            {isImported(model)
+              ? quantization(model.originalFileName)
+              : 'Q4_K_M'}
           </Text>
           <View style={styles.detailRow}>
             <Text style={{ color: colors.muted }}>Context</Text>
@@ -225,19 +241,23 @@ export function ModelCard({
           <Text style={[styles.detailText, { color: colors.muted }]}>
             {model.testedDeviceProfile}
           </Text>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={`View source for ${model.displayName}`}
-            onPress={() =>
-              Linking.openURL(model.sourceUrl).catch(() =>
-                controller.setNotice('Unable to open the source link.'),
-              )
-            }
-            style={styles.source}
-          >
-            <Text style={{ color: colors.accent }}>Source & compatibility</Text>
-            <Icon name="external" color={colors.accent} size={16} />
-          </Pressable>
+          {model.sourceUrl ? (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={`View source for ${model.displayName}`}
+              onPress={() =>
+                Linking.openURL(model.sourceUrl).catch(() =>
+                  controller.setNotice('Unable to open the source link.'),
+                )
+              }
+              style={styles.source}
+            >
+              <Text style={{ color: colors.accent }}>
+                Source & compatibility
+              </Text>
+              <Icon name="external" color={colors.accent} size={16} />
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -256,10 +276,10 @@ export function ModelCatalogView({
 }) {
   const [readyOpen, setReadyOpen] = useState(true);
   const [availableOpen, setAvailableOpen] = useState(true);
-  const ready = CATALOG.filter(model =>
+  const ready = controller.catalog.filter(model =>
     downloaded(controller.states[model.id] || 'checking'),
   );
-  const available = CATALOG.filter(
+  const available = controller.catalog.filter(
     model => !downloaded(controller.states[model.id] || 'checking'),
   );
   return (
@@ -312,7 +332,7 @@ export function ModelCatalogView({
               Available to Download
             </Text>
             <Text style={[styles.sectionHint, { color: colors.muted }]}>
-              Choose from the supported catalog
+              Browse or import a GGUF model
             </Text>
           </View>
           <Icon name={availableOpen ? 'up' : 'down'} color={colors.muted} />
@@ -355,92 +375,7 @@ export function ModelCatalogView({
     </View>
   );
 }
-export function ModelDiscovery({
-  visible,
-  onClose,
-  controller,
-  colors,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  controller: ModelController;
-  colors: Colors;
-}) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'text' | 'vision'>('all');
-  const filtered = CATALOG.filter(
-    model =>
-      model.displayName.toLowerCase().includes(search.toLowerCase()) &&
-      (filter === 'all' || isVision(model) === (filter === 'vision')),
-  );
-  return (
-    <Sheet
-      visible={visible}
-      onClose={onClose}
-      title="Find models"
-      colors={colors}
-    >
-      <View style={[styles.search, { backgroundColor: colors.input }]}>
-        <Icon name="search" color={colors.muted} />
-        <TextInput
-          accessibilityLabel="Search supported models"
-          placeholder="Search supported models"
-          placeholderTextColor={colors.muted}
-          value={search}
-          onChangeText={setSearch}
-          style={[styles.searchInput, { color: colors.text }]}
-        />
-      </View>
-      <View style={styles.filters}>
-        {(['all', 'text', 'vision'] as const).map(value => (
-          <Pressable
-            key={value}
-            accessibilityRole="button"
-            accessibilityState={{ selected: filter === value }}
-            onPress={() => setFilter(value)}
-            style={[
-              styles.filter,
-              {
-                borderColor: colors.border,
-                backgroundColor:
-                  filter === value ? colors.elevated : colors.surface,
-              },
-            ]}
-          >
-            <Text
-              style={{ color: filter === value ? colors.accent : colors.muted }}
-            >
-              {value === 'all'
-                ? 'All models'
-                : value === 'text'
-                ? 'Text'
-                : 'Vision preview'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      <Text style={[styles.detailText, { color: colors.muted }]}>
-        Only models in LLMHub’s supported manifest are offered. Downloads
-        require internet; conversations run locally.
-      </Text>
-      {filtered.length ? (
-        filtered.map(model => (
-          <ModelCard
-            key={model.id}
-            model={model}
-            controller={controller}
-            colors={colors}
-            onChat={onClose}
-          />
-        ))
-      ) : (
-        <Text style={[styles.empty, { color: colors.muted }]}>
-          No supported models match your search.
-        </Text>
-      )}
-    </Sheet>
-  );
-}
+export { ModelDiscovery } from './ModelDiscovery';
 export function ModelPicker({
   visible,
   onClose,
@@ -452,7 +387,7 @@ export function ModelPicker({
   controller: ModelController;
   colors: Colors;
 }) {
-  const models = CATALOG.filter(model =>
+  const models = controller.catalog.filter(model =>
     downloaded(controller.states[model.id] || 'checking'),
   );
   return (
@@ -497,7 +432,7 @@ export function ModelPicker({
               </Text>
               <Text style={[styles.detailText, { color: colors.muted }]}>
                 {labels[controller.states[model.id]]} ·{' '}
-                {formatBytes(model.byteSize)}
+                {model.byteSize ? formatBytes(model.byteSize) : 'Unknown size'}
               </Text>
             </View>
             {controller.states[model.id] === 'active' ? (

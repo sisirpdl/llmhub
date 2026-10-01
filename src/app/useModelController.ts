@@ -4,6 +4,16 @@ import { getBackendDevicesInfo, initLlama, type LlamaContext } from 'llama.rn';
 import RNFS from 'react-native-fs';
 import RNBlobUtil from 'react-native-blob-util';
 import {
+  readImportedModels,
+  saveImportedModels,
+  isImported,
+  downloadImport,
+  discardImport,
+  importLocal,
+  type ImportedModel,
+  type PickedGGUF,
+} from '../models/importedModels';
+import {
   SUPPORTED_MODELS,
   isValidManifest,
   type ModelManifest,
@@ -40,6 +50,10 @@ export const isVision = (model: ModelManifest): model is VisionManifest =>
   'kind' in model && model.kind === 'vision';
 
 export function useModelController() {
+  const [customModels, setCustomModels] = useState<ImportedModel[]>([]);
+  const customRef = useRef<ImportedModel[]>([]);
+  const catalog = [...CATALOG, ...customModels];
+  const [importing, setImporting] = useState(false);
   const [selectedId, setSelectedId] = useState(CATALOG[0].id);
   const [states, setStates] = useState<Record<string, ModelState>>({});
   const [progress, setProgress] = useState<
@@ -57,12 +71,13 @@ export function useModelController() {
   const [generationActive, setGenerationActive] = useState(false);
   const active = useRef<{ context: LlamaContext; id: string } | null>(null);
   const busy = useRef(false);
+  const tokens = useRef<Record<string, string>>({});
   const releasing = useRef<Promise<void> | null>(null);
   const operation = useRef(0);
   const foreground = useRef(
     AppState.currentState === 'active' || AppState.currentState == null,
   );
-  const model = CATALOG.find(item => item.id === selectedId) || CATALOG[0];
+  const model = catalog.find(item => item.id === selectedId) || CATALOG[0];
   const setState = useCallback(
     (id: string, state: ModelState) =>
       setStates(current => ({ ...current, [id]: state })),
@@ -86,22 +101,44 @@ export function useModelController() {
       .catch(() => {
         if (!disposed) setEngineStatus('Check on model load');
       });
-    CATALOG.forEach(async item => {
-      let ready = await isModelReady(item);
-      if (ready && isVision(item)) {
-        const path = artifactPath(item.projectorFileName);
-        ready = await RNFS.exists(path);
-        if (ready) {
-          const stats = await RNFS.stat(path).catch(() => null);
-          ready = Number(stats?.size) === item.projectorByteSize;
-          if (ready)
-            ready =
-              (
-                await RNBlobUtil.fs.hash(path, 'sha256').catch(() => '')
-              ).toLowerCase() === item.projectorSha256.toLowerCase();
-        }
+    async function restoreCatalog() {
+      let imported: ImportedModel[] = [];
+      try {
+        imported = await readImportedModels();
+      } catch {
+        if (!disposed)
+          setNotice(
+            'Saved model imports could not be restored. Built-in models are still available.',
+          );
       }
-      if (!disposed) setState(item.id, ready ? 'ready' : 'not-downloaded');
+      if (disposed) return;
+      customRef.current = imported;
+      setCustomModels(imported);
+      await Promise.all(
+        [...CATALOG, ...imported].map(async item => {
+          let ready = await isModelReady(item);
+          if (ready && isVision(item)) {
+            const path = artifactPath(item.projectorFileName);
+            ready = await RNFS.exists(path);
+            if (ready) {
+              const stats = await RNFS.stat(path).catch(() => null);
+              ready = Number(stats?.size) === item.projectorByteSize;
+              if (ready)
+                ready =
+                  (
+                    await RNBlobUtil.fs.hash(path, 'sha256').catch(() => '')
+                  ).toLowerCase() === item.projectorSha256.toLowerCase();
+            }
+          }
+          if (!disposed) setState(item.id, ready ? 'ready' : 'not-downloaded');
+        }),
+      );
+    }
+    restoreCatalog().catch(() => {
+      if (!disposed)
+        setNotice(
+          'Model files could not be checked. Restart the app to retry.',
+        );
     });
     return () => {
       disposed = true;
@@ -155,9 +192,18 @@ export function useModelController() {
     };
   }, [offload, refreshStorage]);
 
-  async function download(item: ModelManifest) {
+  async function saveCustom(items: ImportedModel[]) {
+    await saveImportedModels(items);
+    customRef.current = items;
+    setCustomModels(items);
+  }
+
+  async function download(item: ModelManifest, token = '') {
     if (busy.current || generationActive) return;
-    if (!isValidManifest(item) || (isVision(item) && !isVisionManifest(item))) {
+    if (
+      !isImported(item) &&
+      (!isValidManifest(item) || (isVision(item) && !isVisionManifest(item)))
+    ) {
       setErrors(current => ({
         ...current,
         [item.id]: 'This model has incomplete compatibility metadata.',
@@ -178,30 +224,55 @@ export function useModelController() {
     try {
       if ((await getAvailableSpace()) < total + 256 * 1024 ** 2)
         throw new Error('Not enough storage. Free some space and retry.');
-      await downloadModel(
-        item,
-        p =>
-          setProgress(current => ({
-            ...current,
-            [item.id]: { bytes: p.bytesWritten, total },
-          })),
-        () => setState(item.id, 'validating'),
-      );
-      if (isVision(item)) {
-        setState(item.id, 'downloading');
-        await downloadVerifiedArtifact(
-          {
-            fileName: item.projectorFileName,
-            url: item.projectorUrl,
-            byteSize: item.projectorByteSize,
-            sha256: item.projectorSha256,
+      if (isImported(item)) {
+        const verified = await downloadImport(
+          item,
+          p => {
+            setState(item.id, 'downloading');
+            setProgress(current => ({
+              ...current,
+              [item.id]: { bytes: p.bytesWritten, total: p.totalBytes },
+            }));
           },
+          () => setState(item.id, 'validating'),
+          token || tokens.current[item.id] || '',
+        );
+        try {
+          await saveCustom(
+            customRef.current.map(current =>
+              current.id === item.id ? verified : current,
+            ),
+          );
+        } catch (error) {
+          await discardImport(verified).catch(() => {});
+          throw error;
+        }
+      } else {
+        await downloadModel(
+          item,
           p =>
             setProgress(current => ({
               ...current,
-              [item.id]: { bytes: item.byteSize + p.bytesWritten, total },
+              [item.id]: { bytes: p.bytesWritten, total },
             })),
+          () => setState(item.id, 'validating'),
         );
+        if (isVision(item)) {
+          setState(item.id, 'downloading');
+          await downloadVerifiedArtifact(
+            {
+              fileName: item.projectorFileName,
+              url: item.projectorUrl,
+              byteSize: item.projectorByteSize,
+              sha256: item.projectorSha256,
+            },
+            p =>
+              setProgress(current => ({
+                ...current,
+                [item.id]: { bytes: item.byteSize + p.bytesWritten, total },
+              })),
+          );
+        }
       }
       setState(item.id, 'ready');
     } catch (error) {
@@ -244,7 +315,13 @@ export function useModelController() {
       setLoadDuration(Date.now() - start);
       const smokeStart = Date.now();
       const result = await next.completion({
-        prompt: 'Reply with exactly: READY',
+        ...(item.promptTemplateId === 'native'
+          ? {
+              messages: [
+                { role: 'user' as const, content: 'Reply with exactly: READY' },
+              ],
+            }
+          : { prompt: 'Reply with exactly: READY' }),
         n_predict: 8,
         temperature: 0,
       });
@@ -311,7 +388,16 @@ export function useModelController() {
                   if (await RNFS.exists(file)) await RNFS.unlink(file);
                 }
               }
-              setState(item.id, 'not-downloaded');
+              if (isImported(item)) {
+                await saveCustom(
+                  customRef.current.filter(current => current.id !== item.id),
+                );
+                setStates(current => {
+                  const updated = { ...current };
+                  delete updated[item.id];
+                  return updated;
+                });
+              } else setState(item.id, 'not-downloaded');
             } catch (error) {
               setErrors(current => ({
                 ...current,
@@ -329,7 +415,66 @@ export function useModelController() {
       ],
     );
   }
+  async function addRemote(item: ImportedModel, token = ''): Promise<boolean> {
+    if (busy.current || generationActive) {
+      setNotice('Wait for the current model operation to finish.');
+      return false;
+    }
+    const existing = customRef.current.find(
+      current =>
+        current.url &&
+        current.url === item.url &&
+        ((!isVision(current) && !isVision(item)) ||
+          (isVision(current) &&
+            isVision(item) &&
+            current.projectorUrl === item.projectorUrl)),
+    );
+    if (
+      existing &&
+      ['ready', 'active', 'loading'].includes(states[existing.id])
+    ) {
+      setNotice('This model file is already in your library.');
+      return true;
+    }
+    const target = existing || item;
+    if (!existing) await saveCustom([...customRef.current, target]);
+    if (token) tokens.current[target.id] = token;
+    download(target, token).catch(() =>
+      setNotice('Unable to start this download. Try again.'),
+    );
+    return true;
+  }
+  async function addLocal(
+    file: PickedGGUF,
+    projector?: PickedGGUF,
+  ): Promise<boolean> {
+    if (busy.current || generationActive)
+      throw new Error(
+        'Wait for the current operation or stop generation first.',
+      );
+    busy.current = true;
+    setImporting(true);
+    try {
+      const imported = await importLocal(file, projector);
+      try {
+        await saveCustom([...customRef.current, imported]);
+      } catch (error) {
+        await discardImport(imported).catch(() => {});
+        throw error;
+      }
+      setState(imported.id, 'ready');
+      return true;
+    } finally {
+      busy.current = false;
+      setImporting(false);
+      refreshStorage();
+    }
+  }
   return {
+    catalog,
+    importing,
+    addRemote,
+    addLocal,
     model,
     states,
     progress,

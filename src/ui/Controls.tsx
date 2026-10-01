@@ -95,12 +95,14 @@ export function Sheet({
   title,
   colors,
   children,
+  scroll = true,
 }: {
   visible: boolean;
   onClose: () => void;
   title: string;
   colors: Colors;
   children: ReactNode;
+  scroll?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -146,12 +148,16 @@ export function Sheet({
               colors={colors}
             />
           </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={s.sheetContent}
-          >
-            {children}
-          </ScrollView>
+          {scroll ? (
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={s.sheetContent}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={[s.sheetContent, s.shrink]}>{children}</View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -179,7 +185,11 @@ export const s = StyleSheet.create({
   buttonText: { fontSize: 16, fontWeight: '500' },
   modal: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { flex: 1 },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+  },
   handle: {
     height: 4,
     width: 32,
@@ -196,5 +206,6 @@ export const s = StyleSheet.create({
     paddingVertical: 12,
   },
   sheetTitle: { fontSize: 21, fontWeight: '500' },
+  shrink: { flexShrink: 1 },
   sheetContent: { paddingHorizontal: 20, paddingBottom: 12, gap: 16 },
 });
