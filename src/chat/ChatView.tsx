@@ -307,7 +307,7 @@ export function ChatView({
     </KeyboardAvoidingView>
   );
 }
-const MessageBubble = memo(function MessageBubble({
+const MessageBubble = memo(function MessageBubbleContent({
   item,
   colors,
   sending,
