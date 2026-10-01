@@ -29,10 +29,18 @@ afterEach(async () => {
     renderers.length = 0;
   });
 });
-function Harness({ context }: { context: LlamaContext | null }) {
+function Harness({
+  context,
+  native = false,
+}: {
+  context: LlamaContext | null;
+  native?: boolean;
+}) {
   chat = useChatController({
     context,
-    model: SUPPORTED_MODELS[0],
+    model: native
+      ? { ...SUPPORTED_MODELS[0], promptTemplateId: 'native' }
+      : SUPPORTED_MODELS[0],
     vision: false,
   });
   return (
@@ -141,4 +149,28 @@ test('prevents concurrent sends and keeps a stopped partial response', async () 
   expect(completion).toHaveBeenCalledTimes(1);
   expect(chat.messages[1].content).toBe('Partial');
   expect(chat.sending).toBe(false);
+});
+
+test('sends structured messages to imported model chat templates', async () => {
+  const completion = jest.fn().mockResolvedValue({ text: 'Native response' });
+  const context = {
+    completion,
+    stopCompletion: jest.fn(),
+  } as unknown as LlamaContext;
+  await ReactTestRenderer.act(async () => {
+    renderers.push(
+      ReactTestRenderer.create(<Harness context={context} native />),
+    );
+  });
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Hello from an imported model');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(completion.mock.calls[0][0]).not.toHaveProperty('prompt');
+  expect(completion.mock.calls[0][0].messages).toEqual([
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'Hello from an imported model' },
+  ]);
 });

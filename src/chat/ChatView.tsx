@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { memo, useRef, useState } from 'react';
 import {
   FlatList,
@@ -80,6 +81,7 @@ export function ChatView({
   settingsVisible: boolean;
   onCloseSettings: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
   const atBottom = useRef(true);
   const [showJump, setShowJump] = useState(false);
@@ -98,8 +100,8 @@ export function ChatView({
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top + (Platform.OS === 'ios' ? 52 : 64)}
     >
       <FlatList
         ref={list}
@@ -109,6 +111,10 @@ export function ChatView({
         style={styles.messages}
         contentContainerStyle={styles.messageContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onLayout={() => {
+          if (atBottom.current) list.current?.scrollToEnd({ animated: false });
+        }}
         onScroll={event => {
           const { contentOffset, contentSize, layoutMeasurement } =
             event.nativeEvent;
@@ -397,6 +403,7 @@ const styles = StyleSheet.create({
   },
   iosComposer: { borderRadius: 20, marginHorizontal: 16 },
   input: {
+    textAlignVertical: 'top',
     fontSize: 17,
     minHeight: 56,
     maxHeight: 144,
