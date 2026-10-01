@@ -7,7 +7,9 @@ import {
   View,
 } from 'react-native';
 import type { AppController } from './AppController';
-import { ChatView, GenerationSettings } from '../chat/ChatView';
+import { ModelSettingsSheet } from '../settings/ModelSettingsSheet';
+import { RenameChatSheet } from '../chat/RenameChatSheet';
+import { ChatView } from '../chat/ChatView';
 import {
   ModelCatalogView,
   ModelDiscovery,
@@ -54,6 +56,7 @@ export function ScreenContent({ app }: { app: AppController }) {
           onPicker={() => app.setPickerVisible(true)}
           settingsVisible={app.chatSettingsVisible}
           onCloseSettings={() => app.setChatSettingsVisible(false)}
+          onSettings={() => app.setChatSettingsVisible(true)}
         />
       ) : app.route === 'settings' ? (
         <SettingsScreen app={app} />
@@ -70,6 +73,24 @@ export function ScreenContent({ app }: { app: AppController }) {
         visible={app.pickerVisible}
         onClose={() => app.setPickerVisible(false)}
         controller={models}
+        colors={colors}
+        onSelect={app.switchModel}
+      />
+      <ModelSettingsSheet
+        visible={app.chatSettingsVisible}
+        onClose={() => app.setChatSettingsVisible(false)}
+        model={models.model}
+        settings={app.settings.forModel(models.model)}
+        systemPrompt={chat.systemPrompt}
+        onApply={app.applyModelSettings}
+        colors={colors}
+        disabled={chat.sending || !app.settings.loaded}
+      />
+      <RenameChatSheet
+        visible={app.renameVisible}
+        title={chat.title}
+        onClose={() => app.setRenameVisible(false)}
+        onSave={chat.renameConversation}
         colors={colors}
       />
       <Sheet
@@ -201,7 +222,16 @@ function SettingsScreen({ app }: { app: AppController }) {
           { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
       >
-        <GenerationSettings chat={app.chat} colors={colors} />
+        <Text style={[styles.paragraph, { color: colors.muted }]}>
+          Adjust generation settings for {app.models.model.displayName}.
+          Instructions are saved with the current chat.
+        </Text>
+        <Button
+          label="Model settings"
+          icon="sliders"
+          colors={colors}
+          onPress={() => app.setChatSettingsVisible(true)}
+        />
       </View>
       <Text style={[styles.section, { color: colors.accent }]}>Privacy</Text>
       <View

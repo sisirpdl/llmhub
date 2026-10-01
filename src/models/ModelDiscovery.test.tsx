@@ -1,3 +1,20 @@
+jest.mock('../device/memory', () => ({
+  readDeviceMemory: jest.fn().mockResolvedValue({
+    totalBytes: 8 * 1024 ** 3,
+    availableBytes: 6 * 1024 ** 3,
+    appBudgetBytes: 5 * 1024 ** 3,
+  }),
+}));
+jest.mock('./ggufMetadata', () => ({
+  readGGUFMetadata: jest.fn().mockResolvedValue({
+    architecture: 'qwen2',
+    layers: 24,
+    kvHeads: 2,
+    keyLength: 64,
+    valueLength: 64,
+    maxContext: 8192,
+  }),
+}));
 import { Text } from 'react-native';
 import Renderer from 'react-test-renderer';
 import { ModelDiscovery } from './ModelDiscovery';
@@ -55,7 +72,9 @@ beforeEach(async () => {
         visible
         colors={darkColors}
         onClose={onClose}
-        controller={{ addRemote } as unknown as ModelController}
+        controller={
+          { addRemote, freeSpace: 10_000_000_000 } as unknown as ModelController
+        }
       />,
     );
   });
@@ -116,7 +135,10 @@ test('opens a repository, selects a GGUF and registers its download', async () =
     file,
     undefined,
   );
-  expect(addRemote).toHaveBeenCalledWith({ id: 'import-selected' }, '');
+  expect(addRemote).toHaveBeenCalledWith(
+    { id: 'import-selected', recommendedContextLength: 2048 },
+    '',
+  );
   expect(onClose).toHaveBeenCalled();
 });
 test('debounces query edits and cancels the pending request on close', async () => {
@@ -142,9 +164,70 @@ test('debounces query edits and cancels the pending request on close', async () 
         visible={false}
         colors={darkColors}
         onClose={onClose}
-        controller={{ addRemote } as unknown as ModelController}
+        controller={
+          { addRemote, freeSpace: 10_000_000_000 } as unknown as ModelController
+        }
       />,
     );
   });
   expect(signal.aborted).toBe(true);
+});
+
+test('keeps a search query while changing rank mode and text/vision filters', async () => {
+  await browse();
+  await Renderer.act(async () => {
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Search Hugging Face' })
+      .props.onChangeText('Qwen');
+  });
+  await Renderer.act(async () => {
+    jest.advanceTimersByTime(350);
+  });
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      search: 'Qwen',
+      task: 'text',
+      sort: 'trendingScore',
+      limit: 10,
+    }),
+    '',
+    expect.anything(),
+  );
+  await Renderer.act(async () => {
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Most downloaded' })
+      .props.onPress();
+  });
+  await Renderer.act(async () => {
+    jest.advanceTimersByTime(350);
+  });
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ search: 'Qwen', sort: 'downloads', limit: 10 }),
+    '',
+    expect.anything(),
+  );
+  await Renderer.act(async () => {
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Show vision models' })
+      .props.onPress();
+  });
+  await Renderer.act(async () => {
+    jest.advanceTimersByTime(350);
+  });
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ search: 'Qwen', task: 'vision' }),
+    '',
+    expect.anything(),
+  );
+  await Renderer.act(async () => {
+    renderer.root.findByProps({ accessibilityLabel: 'Browse' }).props.onPress();
+  });
+  await Renderer.act(async () => {
+    jest.advanceTimersByTime(350);
+  });
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ search: 'Qwen', task: 'vision', limit: 20 }),
+    '',
+    expect.anything(),
+  );
 });

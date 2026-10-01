@@ -49,7 +49,9 @@ export const CATALOG: (ModelManifest | VisionManifest)[] = [
 export const isVision = (model: ModelManifest): model is VisionManifest =>
   'kind' in model && model.kind === 'vision';
 
-export function useModelController() {
+export function useModelController(options?: {
+  contextLengthFor?: (model: ModelManifest) => number;
+}) {
   const [customModels, setCustomModels] = useState<ImportedModel[]>([]);
   const customRef = useRef<ImportedModel[]>([]);
   const catalog = [...CATALOG, ...customModels];
@@ -62,6 +64,10 @@ export function useModelController() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
   const [freeSpace, setFreeSpace] = useState<number | null>(null);
+  const [loadedContextLength, setLoadedContextLength] = useState<number | null>(
+    null,
+  );
+  const externalUI = useRef(false);
   const [context, setContext] = useState<LlamaContext | null>(null);
   const [engineStatus, setEngineStatus] = useState('Checking');
   const [loadDuration, setLoadDuration] = useState<number | null>(null);
@@ -151,6 +157,7 @@ export function useModelController() {
     if (!previous) return;
     active.current = null;
     setContext(null);
+    setLoadedContextLength(null);
     const release = async () => {
       await previous.context.stopCompletion().catch(() => {});
       await previous.context.release().catch(() => {});
@@ -167,7 +174,7 @@ export function useModelController() {
   useEffect(() => {
     const background = AppState.addEventListener('change', next => {
       foreground.current = next === 'active';
-      if (next !== 'active') {
+      if (next !== 'active' && !externalUI.current) {
         operation.current += 1;
         if (active.current) {
           setNotice(
@@ -289,7 +296,10 @@ export function useModelController() {
     }
   }
 
-  async function load(item: ModelManifest): Promise<boolean> {
+  async function load(
+    item: ModelManifest,
+    contextOverride?: number,
+  ): Promise<boolean> {
     if (busy.current || generationActive || !foreground.current) return false;
     busy.current = true;
     const version = ++operation.current;
@@ -300,9 +310,19 @@ export function useModelController() {
       setSelectedId(item.id);
       setState(item.id, 'loading');
       const start = Date.now();
+      const contextLength =
+        contextOverride ??
+        options?.contextLengthFor?.(item) ??
+        item.recommendedContextLength;
+      if (
+        !Number.isInteger(contextLength) ||
+        contextLength < 512 ||
+        contextLength > 8192
+      )
+        throw new Error('Choose a context length between 512 and 8192.');
       next = await initLlama({
         model: modelPath(item),
-        n_ctx: item.recommendedContextLength,
+        n_ctx: contextLength,
       });
       if (
         isVision(item) &&
@@ -339,6 +359,7 @@ export function useModelController() {
       }
       active.current = { context: next, id: item.id };
       setContext(next);
+      setLoadedContextLength(contextLength);
       next = null;
       setState(item.id, 'active');
       setNotice('');
@@ -470,7 +491,13 @@ export function useModelController() {
       refreshStorage();
     }
   }
+  function setExternalUIActive(value: boolean) {
+    externalUI.current = value;
+    if (!value && !foreground.current) offload();
+  }
   return {
+    loadedContextLength,
+    setExternalUIActive,
     catalog,
     importing,
     addRemote,

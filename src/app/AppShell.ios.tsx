@@ -1,3 +1,4 @@
+import { modelLabel } from '../models/modelLabels';
 import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppController, Route } from './AppController';
@@ -39,29 +40,39 @@ export default function IOSAppShell({ app }: { app: AppController }) {
           <View style={styles.spacer} />
         )}
         <View style={styles.heading}>
-          <Text
-            accessibilityRole="header"
-            style={[styles.title, { color: colors.text }]}
-          >
-            {tabs.find(tab => tab.route === app.route)?.label}
-          </Text>
           {app.route === 'chat' ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Choose active model"
-              disabled={app.chat.sending}
-              onPress={() => app.setPickerVisible(true)}
+              accessibilityLabel="Rename chat topic"
+              disabled={app.chat.sending || !app.chat.loaded}
+              onPress={() => app.setRenameVisible(true)}
+              style={styles.titleRow}
             >
               <Text
                 numberOfLines={1}
-                style={[styles.subtitle, { color: colors.accent }]}
+                style={[styles.title, styles.chatTitle, { color: colors.text }]}
               >
-                {app.models.context
-                  ? app.models.model.displayName
-                  : 'Choose a model'}{' '}
-                ▾
+                {app.chat.title}
               </Text>
+              <Icon name="edit" color={colors.muted} size={14} />
             </Pressable>
+          ) : (
+            <Text
+              accessibilityRole="header"
+              style={[styles.title, { color: colors.text }]}
+            >
+              {tabs.find(tab => tab.route === app.route)?.label}
+            </Text>
+          )}
+          {app.route === 'chat' ? (
+            <Text
+              numberOfLines={1}
+              style={[styles.subtitle, { color: colors.muted }]}
+            >
+              {app.models.context
+                ? modelLabel(app.models.model)
+                : 'No model loaded'}
+            </Text>
           ) : null}
         </View>
         {app.route === 'models' ? (
@@ -144,6 +155,13 @@ export default function IOSAppShell({ app }: { app: AppController }) {
   );
 }
 const styles = StyleSheet.create({
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 28,
+  },
+  chatTitle: { flexShrink: 1 },
   root: { flex: 1 },
   navigation: {
     minHeight: 52,

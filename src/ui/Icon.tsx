@@ -24,6 +24,7 @@ const paths = {
   image: 'M3 3h18v18H3zM3 17l6-6 5 5 3-3 4 4M16 7h.01',
   arrow: 'M5 12h14m-6-6 6 6-6 6',
   back: 'M19 12H5m6-6-6 6 6 6',
+  storage: 'M4 4h16v16H4zM7 4v6h10V4M7 20v-7h10v7',
   external: 'M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7',
   clock: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM12 7v5l3 2',
 };
