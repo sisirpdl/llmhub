@@ -1,165 +1,452 @@
-import {useEffect, useRef, useState} from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import {AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native'
-import {launchImageLibrary} from 'react-native-image-picker'
-import type {LlamaContext, TokenData} from 'llama.rn'
-import {SUPPORTED_MODELS} from '../models/modelCatalog'
-import {buildPrompt, type PromptMessage} from './promptBuilder'
-
-type Message = {id: string; role: 'user' | 'assistant' | 'system'; content: string}
-type Theme = {card: object; text: object; secondaryText: object; accent: object; primaryButton: object; primaryButtonText: object; secondaryButton: object; secondaryButtonText: object; error: object}
-const STORAGE_KEY = '@llmhub/conversation'
-const SETTINGS_KEY = '@llmhub/chat-settings'
-let chatVisionMode = false
-
-export function setChatVisionMode(enabled: boolean): void { chatVisionMode = enabled }
-
-export function ChatView({context, theme, onGenerationStateChange, onBackgroundRelease}: {context: LlamaContext | null; theme: Theme; onGenerationStateChange?: (active: boolean) => void; onBackgroundRelease?: () => Promise<void>}) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [draft, setDraft] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
-  const [omittedNotice, setOmittedNotice] = useState(false)
-  const [temperature, setTemperature] = useState('0.7')
-  const [maxTokens, setMaxTokens] = useState('256')
-  const [settingsLoaded, setSettingsLoaded] = useState(false)
-  const visionCapability = chatVisionMode
-  const tokenBuffer = useRef('')
-  const activeAssistantId = useRef<string | null>(null)
-  const frame = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
-  const listRef = useRef<ScrollView>(null)
-  const [imageUri, setImageUri] = useState<string | null>(null)
-
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(value => {
-      if (!value) return
-      try { setMessages(JSON.parse(value) as Message[]) } catch { setError('Saved conversation could not be restored.') }
-    }).catch(() => setError('Saved conversation could not be restored.'))
-    AsyncStorage.getItem(SETTINGS_KEY).then(value => {
-      if (value) {
-        try {
-          const settings = JSON.parse(value) as {temperature?: string; maxTokens?: string}
-          if (settings.temperature) setTemperature(settings.temperature)
-          if (settings.maxTokens) setMaxTokens(settings.maxTokens)
-        } catch { setError('Saved generation settings could not be restored.') }
-      }
-      setSettingsLoaded(true)
-    }).catch(() => { setSettingsLoaded(true); setError('Saved generation settings could not be restored.') })
-    return () => { if (frame.current) cancelAnimationFrame(frame.current) }
-  }, [])
-
-  useEffect(() => {
-    if (messages.length) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(messages)).catch(() => setError('Conversation could not be saved.'))
-  }, [messages])
-
-  useEffect(() => {
-    if (settingsLoaded) AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({temperature, maxTokens})).catch(() => setError('Generation settings could not be saved.'))
-  }, [maxTokens, settingsLoaded, temperature])
-
-  useEffect(() => {
-    onGenerationStateChange?.(sending)
-  }, [onGenerationStateChange, sending])
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextState => {
-      if (nextState !== 'active' && sending && context) {
-        context.stopCompletion().then(() => {
-          if (frame.current) cancelAnimationFrame(frame.current)
-          flushTokens()
-          activeAssistantId.current = null
-          return onBackgroundRelease?.()
-        }).catch(() => {})
-        setSending(false)
-        setError('Generation was interrupted when the app left the foreground.')
-      }
-    })
-    return () => subscription.remove()
-  }, [context, onBackgroundRelease, sending])
-
-  function flushTokens() {
-    frame.current = null
-    const assistantId = activeAssistantId.current
-    if (!assistantId) return
-    const content = tokenBuffer.current
-    setMessages(current => current.map(message => message.id === assistantId ? {...message, content} : message))
-  }
-
-  function queueToken(data: TokenData) {
-    tokenBuffer.current += data.token || data.content || ''
-    if (!frame.current) frame.current = requestAnimationFrame(flushTokens)
-  }
-
-  async function sendMessage() {
-    const content = draft.trim()
-    if ((!content && !imageUri) || !context || sending) return
-    const parsedTemperature = Number(temperature)
-    const parsedMaxTokens = Number(maxTokens)
-    if (!Number.isFinite(parsedTemperature) || parsedTemperature < 0 || parsedTemperature > 2 || !Number.isInteger(parsedMaxTokens) || parsedMaxTokens < 1 || parsedMaxTokens > 4096) {
-      setError('Temperature must be 0-2 and maximum output tokens must be 1-4096.')
-      return
-    }
-    setDraft('')
-    setError('')
-    const userMessage: Message = {id: `${Date.now()}-user`, role: 'user', content: content || 'Describe this image.'}
-    const assistantMessage: Message = {id: `${Date.now()}-assistant`, role: 'assistant', content: ''}
-    const nextMessages = [...messages, userMessage, assistantMessage]
-    setMessages(nextMessages)
-    setImageUri(null)
-    setSending(true)
-    activeAssistantId.current = assistantMessage.id
-    tokenBuffer.current = ''
-    try {
-      const promptMessages = imageUri
-        ? nextMessages.slice(0, -1).map((message, index, allMessages) => index === allMessages.length - 1 ? {...message, content: `${message.content}\n<__media__>`} : message)
-        : nextMessages.slice(0, -1)
-      const promptResult = buildPrompt(promptMessages as PromptMessage[], SUPPORTED_MODELS[0].promptTemplateId, SUPPORTED_MODELS[0].recommendedContextLength)
-      setOmittedNotice(promptResult.omittedMessageCount > 0 || promptResult.truncatedMessage)
-      const completionParams = {prompt: promptResult.prompt, n_predict: parsedMaxTokens, temperature: parsedTemperature, ...(imageUri ? {media_paths: [imageUri]} : {})}
-      const result = await context.completion(completionParams, queueToken)
-      if (frame.current) cancelAnimationFrame(frame.current)
-      flushTokens()
-      if (result.text && !tokenBuffer.current) tokenBuffer.current = result.text
-      flushTokens()
-    } catch (completionError) {
-      if (tokenBuffer.current) flushTokens()
-      setError(completionError instanceof Error ? completionError.message : 'Generation failed. Retry the message.')
-    } finally {
-      activeAssistantId.current = null
-      setSending(false)
-    }
-  }
-
-  async function stopGeneration() {
-    if (!context || !sending) return
-    await context.stopCompletion().catch(() => {})
-    if (frame.current) cancelAnimationFrame(frame.current)
-    flushTokens()
-    activeAssistantId.current = null
-    setSending(false)
-    setError('Generation stopped. The partial response was kept.')
-  }
-
-  function resetConversation() {
-    setMessages([])
-    setOmittedNotice(false)
-    setError('')
-    AsyncStorage.removeItem(STORAGE_KEY).catch(() => setError('Conversation could not be reset.'))
-  }
-
-  return <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
-    {!context ? <View style={[styles.empty, theme.card]}><Text style={[styles.emptyTitle, theme.text]}>Load a model to chat</Text><Text style={[styles.emptyText, theme.secondaryText]}>Choose a model, download it, and complete the native smoke check first.</Text></View> : null}
-    <ScrollView ref={listRef} style={styles.messages} contentContainerStyle={styles.messageContent} keyboardShouldPersistTaps="handled" onContentSizeChange={() => listRef.current?.scrollToEnd({animated: true})}>
-      {messages.length === 0 && context ? <Text style={[styles.emptyText, theme.secondaryText]}>Your private conversation starts here.</Text> : null}
-      {messages.map(message => <View key={message.id} style={[styles.bubble, message.role === 'user' ? styles.userBubble : [styles.assistantBubble, theme.card]]}><Text style={[styles.role, message.role === 'user' ? theme.primaryButtonText : theme.accent]}>{message.role === 'user' ? 'YOU' : 'MODEL'}</Text><Text accessibilityLiveRegion={message.role === 'assistant' ? 'polite' : 'none'} style={[styles.messageText, message.role === 'user' ? theme.primaryButtonText : theme.text]}>{message.content || (sending ? 'Thinking...' : '')}</Text></View>)}
-    </ScrollView>
-    {error ? <Text style={[styles.error, theme.error]}>{error}</Text> : null}
-    {omittedNotice ? <Text style={[styles.notice, theme.secondaryText]}>Older complete turns were omitted to fit the model context window.</Text> : null}
-    <View style={styles.settings}><Text style={[styles.settingLabel, theme.secondaryText]}>Temperature</Text><TextInput accessibilityLabel="Temperature" keyboardType="decimal-pad" value={temperature} onChangeText={setTemperature} style={[styles.settingInput, theme.card, theme.text]} /><Text style={[styles.settingLabel, theme.secondaryText]}>Max tokens</Text><TextInput accessibilityLabel="Maximum output tokens" keyboardType="number-pad" value={maxTokens} onChangeText={setMaxTokens} style={[styles.settingInput, theme.card, theme.text]} /><Pressable accessibilityLabel="Reset conversation" onPress={resetConversation}><Text style={[styles.resetText, theme.accent]}>Reset</Text></Pressable></View>
-    {imageUri ? <View style={[styles.imageChip, theme.card]}><Text style={[styles.imageChipText, theme.text]}>Image ready</Text><Pressable accessibilityLabel="Remove selected image" onPress={() => setImageUri(null)}><Text style={[styles.removeImage, theme.accent]}>Remove</Text></Pressable></View> : null}
-    <View style={styles.composer}>{visionCapability ? <Pressable accessibilityLabel="Attach image" onPress={async () => { const result = await launchImageLibrary({mediaType: 'photo', selectionLimit: 1}); const uri = result.assets?.[0]?.uri; if (uri) { setImageUri(uri); setError('') } }}><Text style={[styles.attachText, theme.accent]}>＋</Text></Pressable> : null}<TextInput accessibilityLabel="Message" value={draft} onChangeText={setDraft} editable={Boolean(context) && !sending} multiline placeholder={imageUri ? 'Ask about this image' : 'Ask something locally'} placeholderTextColor="#89938d" style={[styles.input, theme.card, theme.text]} /><Pressable accessibilityLabel={sending ? 'Stop generation' : 'Send message'} disabled={!context || (!sending && !draft.trim() && !imageUri)} onPress={sending ? stopGeneration : sendMessage} style={[styles.sendButton, sending ? theme.secondaryButton : theme.primaryButton, (!context || (!sending && !draft.trim() && !imageUri)) && styles.disabled]}><Text style={[styles.sendText, sending ? theme.secondaryButtonText : theme.primaryButtonText]}>{sending ? 'Stop' : 'Send'}</Text></Pressable></View>
-  </KeyboardAvoidingView>
+import { memo, useRef, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { Icon } from '../ui/Icon';
+import { IconButton, Sheet } from '../ui/Controls';
+import type { Colors } from '../ui/theme';
+import type { ChatController, Message } from './useChatController';
+export function GenerationSettings({
+  chat,
+  colors,
+}: {
+  chat: ChatController;
+  colors: Colors;
+}) {
+  return (
+    <View style={styles.settings}>
+      <Text style={[styles.settingsIntro, { color: colors.muted }]}>
+        These settings apply to your next response.
+      </Text>
+      <Text style={[styles.settingLabel, { color: colors.text }]}>
+        Temperature
+      </Text>
+      <Text style={[styles.caption, { color: colors.muted }]}>
+        Lower values are more focused. Range: 0–2.
+      </Text>
+      <TextInput
+        accessibilityLabel="Temperature"
+        keyboardType="decimal-pad"
+        value={chat.temperature}
+        onChangeText={chat.setTemperature}
+        style={[
+          styles.settingInput,
+          { backgroundColor: colors.input, color: colors.text },
+        ]}
+      />
+      <Text style={[styles.settingLabel, { color: colors.text }]}>
+        Maximum output tokens
+      </Text>
+      <Text style={[styles.caption, { color: colors.muted }]}>
+        Longer responses take more time. Range: 1–4096.
+      </Text>
+      <TextInput
+        accessibilityLabel="Maximum output tokens"
+        keyboardType="number-pad"
+        value={chat.maxTokens}
+        onChangeText={chat.setMaxTokens}
+        style={[
+          styles.settingInput,
+          { backgroundColor: colors.input, color: colors.text },
+        ]}
+      />
+    </View>
+  );
 }
+export function ChatView({
+  chat,
+  colors,
+  active,
+  vision,
+  onModels,
+  onPicker,
+  settingsVisible,
+  onCloseSettings,
+}: {
+  chat: ChatController;
+  colors: Colors;
+  active: boolean;
+  vision: boolean;
+  onModels: () => void;
+  onPicker: () => void;
+  settingsVisible: boolean;
+  onCloseSettings: () => void;
+}) {
+  const list = useRef<FlatList<Message>>(null);
+  const atBottom = useRef(true);
+  const [showJump, setShowJump] = useState(false);
+  const disabled =
+    !active ||
+    !chat.loaded ||
+    (!chat.sending && !chat.draft.trim() && !chat.imageUri);
+  const renderMessage = ({ item }: { item: Message }) => (
+    <MessageBubble
+      item={item}
+      colors={colors}
+      sending={item.content ? false : chat.sending}
+    />
+  );
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <FlatList
+        ref={list}
+        data={chat.messages}
+        renderItem={renderMessage}
+        keyExtractor={item => item.id}
+        style={styles.messages}
+        contentContainerStyle={styles.messageContent}
+        keyboardShouldPersistTaps="handled"
+        onScroll={event => {
+          const { contentOffset, contentSize, layoutMeasurement } =
+            event.nativeEvent;
+          atBottom.current =
+            contentSize.height - layoutMeasurement.height - contentOffset.y <
+            100;
+          setShowJump(!atBottom.current);
+        }}
+        scrollEventThrottle={100}
+        onContentSizeChange={() => {
+          if (atBottom.current) list.current?.scrollToEnd({ animated: false });
+        }}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <View
+              style={[styles.emptyIcon, { backgroundColor: colors.elevated }]}
+            >
+              <Icon
+                name={active ? 'chat' : 'models'}
+                size={32}
+                color={colors.accent}
+              />
+            </View>
+            <Text
+              accessibilityRole="header"
+              style={[styles.emptyTitle, { color: colors.text }]}
+            >
+              {active ? 'Your space to think.' : 'Load a model to chat'}
+            </Text>
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              {active
+                ? 'Ask a question, explore an idea, or start writing. This conversation stays on your device.'
+                : 'Download a supported model and load it to start a private, offline conversation.'}
+            </Text>
+            {!active ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onModels}
+                style={[styles.emptyAction, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.link, { color: colors.accent }]}>
+                  Choose a model
+                </Text>
+                <Icon name="arrow" color={colors.accent} size={18} />
+              </Pressable>
+            ) : (
+              <View style={styles.suggestions}>
+                {[
+                  'Explain something simply',
+                  'Help me write',
+                  'Brainstorm an idea',
+                ].map(label => (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={label}
+                    onPress={() => chat.setDraft(label)}
+                    style={[styles.suggestion, { borderColor: colors.border }]}
+                  >
+                    <Text style={{ color: colors.muted }}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        }
+      />
+      {showJump ? (
+        <View style={styles.jump}>
+          <IconButton
+            name="down"
+            label="Scroll to latest message"
+            colors={colors}
+            onPress={() => {
+              atBottom.current = true;
+              setShowJump(false);
+              list.current?.scrollToEnd({ animated: true });
+            }}
+          />
+        </View>
+      ) : null}
+      {chat.error ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[styles.notice, { color: colors.danger }]}
+        >
+          {chat.error}
+        </Text>
+      ) : null}
+      {chat.omittedNotice ? (
+        <Text style={[styles.notice, { color: colors.muted }]}>
+          Older turns were omitted to fit the model’s context window.
+        </Text>
+      ) : null}
+      <Text
+        accessibilityLiveRegion="polite"
+        style={[styles.status, { color: colors.muted }]}
+      >
+        {chat.sending
+          ? 'Generating on device…'
+          : active
+          ? 'On device · No cloud'
+          : 'No model loaded'}
+      </Text>
+      <View
+        style={[
+          styles.composer,
+          { backgroundColor: colors.input, borderColor: colors.border },
+          Platform.OS === 'ios' && styles.iosComposer,
+        ]}
+      >
+        {chat.imageUri ? (
+          <View style={styles.attachment}>
+            <Image source={{ uri: chat.imageUri }} style={styles.thumbnail} />
+            <Text style={{ color: colors.text }}>Image attached</Text>
+            <IconButton
+              name="close"
+              label="Remove selected image"
+              colors={colors}
+              onPress={() => chat.setImageUri(null)}
+            />
+          </View>
+        ) : null}
+        <TextInput
+          accessibilityLabel="Message"
+          value={chat.draft}
+          onChangeText={chat.setDraft}
+          editable={active && chat.loaded && !chat.sending}
+          multiline
+          placeholder={
+            chat.imageUri ? 'Ask about this image' : 'Type your message here'
+          }
+          placeholderTextColor={colors.muted}
+          style={[styles.input, { color: colors.text }]}
+        />
+        <View style={styles.composerTools}>
+          {vision ? (
+            <IconButton
+              name="plus"
+              label="Attach image"
+              colors={colors}
+              disabled={!active || chat.sending}
+              onPress={chat.attachImage}
+            />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose chat model"
+            disabled={chat.sending}
+            onPress={onPicker}
+            style={[styles.modelPicker, { backgroundColor: colors.elevated }]}
+          >
+            <Icon name="models" size={16} color={colors.muted} />
+            <Text style={[styles.caption, { color: colors.muted }]}>Model</Text>
+            <Icon name="down" size={16} color={colors.muted} />
+          </Pressable>
+          <View style={styles.spacer} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              chat.sending ? 'Stop generation' : 'Send message'
+            }
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={chat.sending ? chat.stopGeneration : chat.sendMessage}
+            style={[
+              styles.send,
+              { backgroundColor: disabled ? colors.elevated : colors.primary },
+              disabled && styles.disabled,
+            ]}
+          >
+            <Icon
+              name={chat.sending ? 'stop' : 'send'}
+              color={disabled ? colors.muted : colors.onPrimary}
+              size={23}
+            />
+          </Pressable>
+        </View>
+      </View>
+      <Sheet
+        visible={settingsVisible}
+        onClose={onCloseSettings}
+        title="Chat settings"
+        colors={colors}
+      >
+        <GenerationSettings chat={chat} colors={colors} />
+        <Pressable
+          accessibilityRole="button"
+          disabled={chat.sending}
+          onPress={chat.resetConversation}
+          style={styles.clear}
+        >
+          <Icon name="trash" color={colors.danger} size={20} />
+          <Text style={{ color: colors.danger }}>Clear this conversation</Text>
+        </Pressable>
+      </Sheet>
+    </KeyboardAvoidingView>
+  );
+}
+const MessageBubble = memo(function MessageBubble({
+  item,
+  colors,
+  sending,
+}: {
+  item: Message;
+  colors: Colors;
+  sending: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.message,
+        item.role === 'user'
+          ? [styles.userMessage, { backgroundColor: colors.elevated }]
+          : styles.assistantMessage,
+      ]}
+    >
+      {item.role !== 'user' ? (
+        <View style={styles.role}>
+          <Icon name="chat" size={17} color={colors.accent} />
+          <Text style={[styles.roleText, { color: colors.muted }]}>LLMHub</Text>
+        </View>
+      ) : null}
+      <Text selectable style={[styles.messageText, { color: colors.text }]}>
+        {item.content || (sending ? 'Thinking…' : 'No response generated.')}
+      </Text>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
-  container: {flex: 1}, messages: {flex: 1}, messageContent: {flexGrow: 1, gap: 12, paddingBottom: 16, paddingTop: 20}, empty: {borderRadius: 18, marginTop: 20, padding: 19}, emptyTitle: {fontSize: 19, fontWeight: '800'}, emptyText: {fontSize: 15, lineHeight: 21, marginTop: 6}, bubble: {borderRadius: 19, maxWidth: '88%', paddingHorizontal: 16, paddingVertical: 13}, userBubble: {alignSelf: 'flex-end', backgroundColor: '#007aff'}, assistantBubble: {alignSelf: 'flex-start'}, role: {fontSize: 10, fontWeight: '800', letterSpacing: 1}, messageText: {fontSize: 16, lineHeight: 23, marginTop: 5}, settings: {alignItems: 'center', flexDirection: 'row', gap: 6, paddingTop: 9}, settingLabel: {fontSize: 11}, settingInput: {borderRadius: 8, fontSize: 12, minWidth: 47, paddingHorizontal: 8, paddingVertical: 6, textAlign: 'center'}, resetText: {fontSize: 12, fontWeight: '700', marginLeft: 'auto'}, imageChip: {alignItems: 'center', borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingHorizontal: 12, paddingVertical: 9}, imageChipText: {fontSize: 13, fontWeight: '700'}, removeImage: {fontSize: 12, fontWeight: '700'}, composer: {alignItems: 'flex-end', flexDirection: 'row', gap: 8, paddingBottom: 8, paddingTop: 11}, attachText: {fontSize: 27, fontWeight: '300', paddingBottom: 8, paddingHorizontal: 3}, input: {borderRadius: 14, flex: 1, fontSize: 16, maxHeight: 110, minHeight: 49, paddingHorizontal: 15, paddingTop: 13}, sendButton: {alignItems: 'center', borderRadius: 14, minWidth: 64, paddingHorizontal: 15, paddingVertical: 15}, sendText: {fontSize: 14, fontWeight: '700'}, disabled: {opacity: .45}, error: {fontSize: 13, lineHeight: 18, marginTop: 8}, notice: {fontSize: 12, lineHeight: 17, marginTop: 8},
-})
+  container: { flex: 1 },
+  messages: { flex: 1 },
+  messageContent: { flexGrow: 1, padding: 20, gap: 24, paddingBottom: 24 },
+  message: { maxWidth: '94%' },
+  userMessage: { alignSelf: 'flex-end', borderRadius: 20, padding: 16 },
+  assistantMessage: { alignSelf: 'stretch' },
+  messageText: { fontSize: 16, lineHeight: 25 },
+  role: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  roleText: { fontSize: 12, fontWeight: '500' },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 44,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: { fontSize: 24, fontWeight: '500', textAlign: 'center' },
+  emptyText: {
+    fontSize: 15,
+    lineHeight: 23,
+    textAlign: 'center',
+    maxWidth: 310,
+    marginTop: 12,
+  },
+  emptyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    marginTop: 24,
+  },
+  link: { fontSize: 15, fontWeight: '500' },
+  suggestions: { marginTop: 24, gap: 10 },
+  suggestion: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  composer: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 8,
+  },
+  iosComposer: { borderRadius: 20, marginHorizontal: 16 },
+  input: {
+    fontSize: 17,
+    minHeight: 56,
+    maxHeight: 144,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  composerTools: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  modelPicker: {
+    minHeight: 44,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 22,
+  },
+  spacer: { flex: 1 },
+  send: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabled: { opacity: 0.5 },
+  status: { fontSize: 11, textAlign: 'center', paddingVertical: 8 },
+  notice: {
+    fontSize: 13,
+    lineHeight: 19,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  jump: { alignSelf: 'center' },
+  attachment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 8,
+  },
+  thumbnail: { height: 44, width: 44, borderRadius: 8 },
+  settings: { gap: 8 },
+  settingsIntro: { fontSize: 14, lineHeight: 21, marginBottom: 8 },
+  settingLabel: { fontSize: 17, marginTop: 8 },
+  caption: { fontSize: 13, lineHeight: 19 },
+  settingInput: { fontSize: 17, borderRadius: 12, padding: 14 },
+  clear: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 48,
+    marginTop: 16,
+  },
+});
