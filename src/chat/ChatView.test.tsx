@@ -32,6 +32,7 @@ test('creates a user turn and streams an assistant response', async () => {
   const sendButton = renderer!.root.findByProps({accessibilityLabel: 'Send message'})
   await ReactTestRenderer.act(async () => { await sendButton.props.onPress() })
   expect(completion).toHaveBeenCalled()
+  expect(completion.mock.calls[0][0]).not.toHaveProperty('media_paths')
   const renderedText = renderer!.root.findAllByType('Text' as never).map(node => node.props.children).flat().join(' ')
   expect(renderedText).toContain('YOU')
   expect(renderedText).toContain('local reply')

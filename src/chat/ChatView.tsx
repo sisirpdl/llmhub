@@ -114,7 +114,8 @@ export function ChatView({context, theme, onGenerationStateChange, onBackgroundR
         : nextMessages.slice(0, -1)
       const promptResult = buildPrompt(promptMessages as PromptMessage[], SUPPORTED_MODELS[0].promptTemplateId, SUPPORTED_MODELS[0].recommendedContextLength)
       setOmittedNotice(promptResult.omittedMessageCount > 0 || promptResult.truncatedMessage)
-      const result = await context.completion({prompt: promptResult.prompt, media_paths: imageUri ? [imageUri] : undefined, n_predict: parsedMaxTokens, temperature: parsedTemperature}, queueToken)
+      const completionParams = {prompt: promptResult.prompt, n_predict: parsedMaxTokens, temperature: parsedTemperature, ...(imageUri ? {media_paths: [imageUri]} : {})}
+      const result = await context.completion(completionParams, queueToken)
       if (frame.current) cancelAnimationFrame(frame.current)
       flushTokens()
       if (result.text && !tokenBuffer.current) tokenBuffer.current = result.text
