@@ -83,3 +83,9 @@ This update adds a native memory reader in both app targets. A Metro reload alon
 - Switch text → vision → text in one chat. Check dividers, model attribution, saved images after restart, and warnings.
 - Change context length and verify a reload, retained history, and recovery after a failed load.
 - Verify memory budget readings and load behavior on the physical Android phone and an iPhone; JavaScript bundle success does not verify native compilation or inference.
+
+## Phone-focused discovery
+
+All three Hub tabs default to models up to 4B parameters. Filters offer up to 8B and Any size, and search retains the selected size range. The API parameter filter is backed by a conservative local check using available GGUF/safetensors totals and parameter counts in repository names. Unknown sizes are excluded from limited lists and remain accessible under Any size. Bounded pagination refills after exclusions while preserving ranking; sparse results can show fewer entries with Show more available. Parameter count is a discovery hint, not a RAM-fit guarantee.
+
+The Supported empty state distinguishes unavailable device memory, missing/unsupported GGUF metadata, missing vision projector, split files, and insufficient RAM headroom. Context chips are explicitly labeled as token counts. A lower-context suggestion appears only when recalculation predicts a fit; unknown estimates never imply incompatibility.

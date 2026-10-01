@@ -3,6 +3,7 @@ import {
   hubDownloadUrl,
   hubSearchUrl,
   parseHubDetails,
+  modelParameterCount,
   quantization,
   searchHub,
   type HubFilters,
@@ -58,7 +59,7 @@ test('uses auth and refuses pagination to a different host', async () => {
   const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
     ok: true,
     json: async () => [
-      { id: 'org/public' },
+      { id: 'org/public', gguf: { total: 2e9 } },
       { id: 'org/gated', gated: 'auto' },
     ],
     headers: {
@@ -100,4 +101,62 @@ test('reports gated access and requests file checksums', async () => {
     ),
   ).rejects.toThrow('read token');
   expect(fetchMock.mock.calls[0][0]).toContain('?blobs=true');
+});
+
+test('applies parameter limits before ranking and permits unrestricted queries', () => {
+  expect(hubSearchUrl(filters)).toContain('num_parameters=max%3A4B');
+  expect(hubSearchUrl({ ...filters, maxParameters: '8B' })).toContain(
+    'num_parameters=max%3A8B',
+  );
+  expect(hubSearchUrl({ ...filters, maxParameters: 'all' })).not.toContain(
+    'num_parameters=',
+  );
+});
+
+test('guards against oversized names, handles MoE totals, and does not guess unnamed models', () => {
+  expect(
+    modelParameterCount({ id: 'org/Qwen-27B-GGUF', gguf: { total: 2e9 } }),
+  ).toBe(27e9);
+  expect(modelParameterCount({ id: 'org/Mixtral-8x7B-GGUF' })).toBe(56e9);
+  expect(modelParameterCount({ id: 'org/Small-500M-GGUF' })).toBe(500e6);
+  expect(
+    modelParameterCount({ id: 'org/custom', safetensors: { total: 3e9 } }),
+  ).toBe(3e9);
+  expect(modelParameterCount({ id: 'org/custom' })).toBeNull();
+});
+test('refills ranked results after oversized and unknown repositories are excluded', async () => {
+  const next = 'https://huggingface.co/api/models?limit=2&cursor=next';
+  const fetchMock = jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { id: 'org/model-27B-GGUF' },
+        { id: 'org/model-2B-GGUF' },
+      ],
+      headers: { get: () => `<${next}>; rel="next"` },
+    } as unknown as Response)
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{ id: 'org/model-3B-GGUF' }],
+      headers: { get: () => null },
+    } as unknown as Response);
+  const result = await searchHub({ ...filters, limit: 2, task: 'text' }, '');
+  expect(result.models.map(model => model.id)).toEqual([
+    'org/model-2B-GGUF',
+    'org/model-3B-GGUF',
+  ]);
+  expect(fetchMock.mock.calls[1][0]).toContain('limit=1');
+  expect(result.next).toBeNull();
+});
+test('Any size keeps unknown and oversized repositories discoverable', async () => {
+  jest
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue({
+      ok: true,
+      json: async () => [{ id: 'org/model-27B-GGUF' }, { id: 'org/unknown' }],
+      headers: { get: () => null },
+    } as unknown as Response);
+  const result = await searchHub({ ...filters, maxParameters: 'all' }, '');
+  expect(result.models).toHaveLength(2);
 });

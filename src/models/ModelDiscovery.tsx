@@ -42,6 +42,7 @@ const initial: HubFilters = {
   sort: 'lastModified',
   task: 'text',
   hideGated: false,
+  maxParameters: '4B',
 };
 const sizes = (bytes: number) =>
   bytes
@@ -392,7 +393,11 @@ export function ModelDiscovery({
                 ? 'Downloads in the last 30 days'
                 : mode === 'trending'
                 ? 'Trending GGUF repositories'
-                : 'Browse all GGUF repositories'}
+                : 'Browse GGUF repositories'}
+              {' · '}
+              {filters.maxParameters === 'all'
+                ? 'Any size'
+                : `Up to ${filters.maxParameters || '4B'} parameters`}
             </Text>
             {filterOpen ? (
               <ScrollView
@@ -400,6 +405,26 @@ export function ModelDiscovery({
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={s.body}
               >
+                <Text style={[s.small, { color: colors.muted }]}>
+                  Model size
+                </Text>
+                <View style={s.wrap}>
+                  {(['4B', '8B', 'all'] as const).map(maxParameters =>
+                    chip(
+                      maxParameters === 'all'
+                        ? 'Any size'
+                        : `Up to ${maxParameters}`,
+                      filters.maxParameters === maxParameters,
+                      () => setFilters(v => ({ ...v, maxParameters })),
+                    ),
+                  )}
+                </View>
+                <Text style={[s.small, { color: colors.muted }]}>
+                  Smaller models are better phone candidates. Check each GGUF
+                  variant for estimated RAM fit. Models with unknown parameter
+                  counts are excluded from size-limited lists; choose Any size
+                  to find them.
+                </Text>
                 {field('Author / organization', filters.author, author =>
                   setFilters(v => ({ ...v, author })),
                 )}

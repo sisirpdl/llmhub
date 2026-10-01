@@ -2,7 +2,7 @@
 
 Automated checks for device-aware discovery and chat run on 2026-10-01:
 
-- `npm test -- --runInBand`: the current suite covers browsing, suitability estimates, settings, chat switching, saved images, imports, and model lifecycle.
+- `npm test -- --runInBand`: 69 tests passed across 16 suites, covering phone-focused filtering, suitability explanations, settings, chat switching, saved images, imports, and model lifecycle.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - Android and iOS production JavaScript bundles: passed.

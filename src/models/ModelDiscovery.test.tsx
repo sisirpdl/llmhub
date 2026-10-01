@@ -231,3 +231,56 @@ test('keeps a search query while changing rank mode and text/vision filters', as
     expect.anything(),
   );
 });
+
+test('defaults all browsing modes to small models and retains search when size changes', async () => {
+  await browse();
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ maxParameters: '4B', limit: 10 }),
+    '',
+    expect.anything(),
+  );
+  await Renderer.act(async () => {
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Search Hugging Face' })
+      .props.onChangeText('Qwen');
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Show Hugging Face filters' })
+      .props.onPress();
+  });
+  const select = async (label: string) => {
+    await Renderer.act(async () => {
+      renderer.root
+        .findAllByProps({ accessibilityRole: 'button' })
+        .find(node =>
+          node.findAllByType(Text).some(text => text.props.children === label),
+        )!
+        .props.onPress();
+    });
+    await Renderer.act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+  };
+  await select('Up to 8B');
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ search: 'Qwen', maxParameters: '8B' }),
+    '',
+    expect.anything(),
+  );
+  await select('Any size');
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ search: 'Qwen', maxParameters: 'all' }),
+    '',
+    expect.anything(),
+  );
+  await Renderer.act(async () => {
+    renderer.root.findByProps({ accessibilityLabel: 'Browse' }).props.onPress();
+  });
+  await Renderer.act(async () => {
+    jest.advanceTimersByTime(350);
+  });
+  expect(searchHub).toHaveBeenLastCalledWith(
+    expect.objectContaining({ maxParameters: 'all', limit: 20 }),
+    '',
+    expect.anything(),
+  );
+});

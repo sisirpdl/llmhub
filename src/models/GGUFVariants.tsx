@@ -51,6 +51,7 @@ export function GGUFVariants({
   onImported: () => void;
 }) {
   const [memory, setMemory] = useState<DeviceMemory | null>(null);
+  const [memoryChecked, setMemoryChecked] = useState(false);
   const [metadata, setMetadata] = useState<
     Record<string, MemoryMetadata | null>
   >({});
@@ -69,7 +70,10 @@ export function GGUFVariants({
     let disposed = false;
     const refresh = () => {
       readDeviceMemory().then(value => {
-        if (!disposed) setMemory(value);
+        if (!disposed) {
+          setMemory(value);
+          setMemoryChecked(true);
+        }
       });
     };
     refresh();
@@ -128,6 +132,73 @@ export function GGUFVariants({
   const missing = selected
     ? storageShortfall(selected.size, projection, controller.freeSpace)
     : 0;
+  const matching = files.filter(
+    file => quant === 'All' || file.quantization === quant,
+  );
+  const unknownReason = (file: HubFile) => {
+    if (file.split) return 'Split GGUF files are not supported.';
+    if (!memoryChecked) return 'Reading device memory…';
+    if (!memory)
+      return 'Device RAM could not be checked. Rebuild the app to install the memory reader.';
+    if (memory.appBudgetBytes <= 0)
+      return 'No safe RAM budget is currently available. Close other apps and reopen this screen.';
+    if (vision && (!projector || projector.size <= 0))
+      return 'Select a projector with a known size to estimate vision RAM.';
+    if (!metadata[file.path])
+      return checking
+        ? 'Reading GGUF metadata…'
+        : 'GGUF metadata is unavailable or its architecture cannot be estimated.';
+    if (file.size <= 0) return 'Model download size is unavailable.';
+    if (contextLength > metadata[file.path]!.maxContext)
+      return 'Selected context exceeds the model’s declared context limit.';
+    return 'RAM estimate unavailable.';
+  };
+  const lowerContext = (file: HubFile) =>
+    [4096, 2048, 1024, 512].find(
+      value =>
+        value < contextLength &&
+        !file.split &&
+        estimateSuitability(
+          file.size,
+          metadata[file.path] || null,
+          memory,
+          value,
+          projection,
+          vision,
+        ).status === 'fits',
+    );
+  const suggestedContext = matching
+    .filter(file => suitability(file).status !== 'unknown')
+    .map(lowerContext)
+    .filter((value): value is number => value !== undefined)
+    .sort((a, b) => b - a)[0];
+  const emptyMessage = () => {
+    if (!matching.length)
+      return 'No GGUF files match this quantization filter.';
+    if (!supported) return 'No variants match these filters.';
+    if (!memoryChecked) return 'Reading device memory…';
+    if (!memory)
+      return 'Device RAM could not be checked. Rebuild the app to install the memory reader. Unknown does not mean incompatible.';
+    if (memory.appBudgetBytes <= 0)
+      return 'No safe RAM budget is currently available. Close other apps and reopen this screen.';
+    if (vision && (!projector || projector.size <= 0))
+      return 'Select a projector with a known size to estimate vision RAM.';
+    if (checking)
+      return 'Checking GGUF metadata. Suitable variants will appear as checks finish.';
+    const candidates = matching.filter(file => !file.split);
+    if (!candidates.length)
+      return 'This repository contains only split GGUF files, which are not supported.';
+    const unknown = candidates.filter(
+      file => suitability(file).status === 'unknown',
+    ).length;
+    if (unknown === candidates.length)
+      return 'RAM requirements could not be estimated for these variants. Open All to see the reason for each file; unknown does not mean incompatible.';
+    return `No variants fit the estimated RAM budget with safety headroom at this context.${
+      unknown
+        ? ' Some variants could not be estimated; check All for details.'
+        : ''
+    }`;
+  };
   const chip = (label: string, active: boolean, onPress: () => void) => (
     <Pressable
       key={label}
@@ -185,7 +256,9 @@ export function GGUFVariants({
               RAM budget:{' '}
               {memory
                 ? sizes(memory.appBudgetBytes)
-                : 'Unavailable — rebuild app'}{' '}
+                : memoryChecked
+                ? 'Unavailable — rebuild app'
+                : 'Checking…'}{' '}
               · Storage:{' '}
               {controller.freeSpace !== null
                 ? sizes(controller.freeSpace) + ' free'
@@ -249,7 +322,7 @@ export function GGUFVariants({
           )}
         </ScrollView>
         <Text style={[s.small, { color: colors.muted }]}>
-          Context length · included in RAM estimate
+          Context window (tokens) · lower values use less RAM
         </Text>
         <ScrollView
           horizontal
@@ -332,11 +405,15 @@ export function GGUFVariants({
                   ? `~${sizes(
                       fit.estimatedBytes,
                     )} RAM at ${contextLength} context tokens`
-                  : vision && (!projector || projector.size <= 0)
-                  ? 'Select a projector to estimate vision RAM'
-                  : 'RAM estimate unavailable'}
+                  : unknownReason(file)}
                 {file.split ? ' · Split files unsupported' : ''}
               </Text>
+              {(fit.status === 'large' || fit.status === 'tight') &&
+              lowerContext(file) ? (
+                <Text style={[s.small, { color: colors.accent }]}>
+                  Estimated to fit at {lowerContext(file)} context tokens.
+                </Text>
+              ) : null}
               {shortfall !== null && shortfall > 0 ? (
                 <View style={s.row}>
                   <Icon name="storage" color={colors.danger} size={16} />
@@ -350,11 +427,19 @@ export function GGUFVariants({
         })}
         {!visible.length ? (
           <View style={s.empty}>
-            <Text style={{ color: colors.muted }}>
-              {checking
-                ? 'Suitable variants will appear as metadata is checked.'
-                : 'No variants with a confident RAM fit at this context length.'}
-            </Text>
+            <Text style={{ color: colors.muted }}>{emptyMessage()}</Text>
+            {supported && suggestedContext ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Use ${suggestedContext} context tokens`}
+                onPress={() => setContextLength(suggestedContext)}
+                style={s.textButton}
+              >
+                <Text style={{ color: colors.accent }}>
+                  Try {suggestedContext} context tokens · estimated to fit
+                </Text>
+              </Pressable>
+            ) : null}
             {supported ? (
               <Pressable
                 accessibilityRole="button"
