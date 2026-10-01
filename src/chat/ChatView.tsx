@@ -12,56 +12,9 @@ import {
   View,
 } from 'react-native';
 import { Icon } from '../ui/Icon';
-import { IconButton, Sheet } from '../ui/Controls';
+import { IconButton } from '../ui/Controls';
 import type { Colors } from '../ui/theme';
 import type { ChatController, Message } from './useChatController';
-export function GenerationSettings({
-  chat,
-  colors,
-}: {
-  chat: ChatController;
-  colors: Colors;
-}) {
-  return (
-    <View style={styles.settings}>
-      <Text style={[styles.settingsIntro, { color: colors.muted }]}>
-        These settings apply to your next response.
-      </Text>
-      <Text style={[styles.settingLabel, { color: colors.text }]}>
-        Temperature
-      </Text>
-      <Text style={[styles.caption, { color: colors.muted }]}>
-        Lower values are more focused. Range: 0–2.
-      </Text>
-      <TextInput
-        accessibilityLabel="Temperature"
-        keyboardType="decimal-pad"
-        value={chat.temperature}
-        onChangeText={chat.setTemperature}
-        style={[
-          styles.settingInput,
-          { backgroundColor: colors.input, color: colors.text },
-        ]}
-      />
-      <Text style={[styles.settingLabel, { color: colors.text }]}>
-        Maximum output tokens
-      </Text>
-      <Text style={[styles.caption, { color: colors.muted }]}>
-        Longer responses take more time. Range: 1–4096.
-      </Text>
-      <TextInput
-        accessibilityLabel="Maximum output tokens"
-        keyboardType="number-pad"
-        value={chat.maxTokens}
-        onChangeText={chat.setMaxTokens}
-        style={[
-          styles.settingInput,
-          { backgroundColor: colors.input, color: colors.text },
-        ]}
-      />
-    </View>
-  );
-}
 export function ChatView({
   chat,
   colors,
@@ -69,8 +22,7 @@ export function ChatView({
   vision,
   onModels,
   onPicker,
-  settingsVisible,
-  onCloseSettings,
+  onSettings,
 }: {
   chat: ChatController;
   colors: Colors;
@@ -78,8 +30,9 @@ export function ChatView({
   vision: boolean;
   onModels: () => void;
   onPicker: () => void;
-  settingsVisible: boolean;
-  onCloseSettings: () => void;
+  settingsVisible?: boolean;
+  onCloseSettings?: () => void;
+  onSettings?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
@@ -203,6 +156,12 @@ export function ChatView({
           {chat.error}
         </Text>
       ) : null}
+      {chat.imageContextUnavailable ? (
+        <Text style={[styles.notice, { color: colors.muted }]}>
+          This text model cannot see earlier images. Their accompanying text is
+          included.
+        </Text>
+      ) : null}
       {chat.omittedNotice ? (
         <Text style={[styles.notice, { color: colors.muted }]}>
           Older turns were omitted to fit the model’s context window.
@@ -233,7 +192,7 @@ export function ChatView({
               name="close"
               label="Remove selected image"
               colors={colors}
-              onPress={() => chat.setImageUri(null)}
+              onPress={chat.removeAttachment}
             />
           </View>
         ) : null}
@@ -267,9 +226,21 @@ export function ChatView({
             style={[styles.modelPicker, { backgroundColor: colors.elevated }]}
           >
             <Icon name="models" size={16} color={colors.muted} />
-            <Text style={[styles.caption, { color: colors.muted }]}>Model</Text>
+            <Text style={[styles.caption, { color: colors.muted }]}>
+              {chat.modelName
+                ? cleanedModelName(chat.modelName).slice(0, 5) +
+                  (cleanedModelName(chat.modelName).length > 5 ? '…' : '')
+                : 'Model'}
+            </Text>
             <Icon name="down" size={16} color={colors.muted} />
           </Pressable>
+          <IconButton
+            name="sliders"
+            label="Open model settings"
+            colors={colors}
+            disabled={chat.sending}
+            onPress={onSettings || (() => {})}
+          />
           <View style={styles.spacer} />
           <Pressable
             accessibilityRole="button"
@@ -293,23 +264,6 @@ export function ChatView({
           </Pressable>
         </View>
       </View>
-      <Sheet
-        visible={settingsVisible}
-        onClose={onCloseSettings}
-        title="Chat settings"
-        colors={colors}
-      >
-        <GenerationSettings chat={chat} colors={colors} />
-        <Pressable
-          accessibilityRole="button"
-          disabled={chat.sending}
-          onPress={chat.resetConversation}
-          style={styles.clear}
-        >
-          <Icon name="trash" color={colors.danger} size={20} />
-          <Text style={{ color: colors.danger }}>Clear this conversation</Text>
-        </Pressable>
-      </Sheet>
     </KeyboardAvoidingView>
   );
 }
@@ -322,6 +276,14 @@ const MessageBubble = memo(function MessageBubbleContent({
   colors: Colors;
   sending: boolean;
 }) {
+  if (item.event === 'model-switch')
+    return (
+      <View style={styles.divider}>
+        <Text style={[styles.caption, { color: colors.muted }]}>
+          {item.content}
+        </Text>
+      </View>
+    );
   return (
     <View
       style={[
@@ -334,8 +296,17 @@ const MessageBubble = memo(function MessageBubbleContent({
       {item.role !== 'user' ? (
         <View style={styles.role}>
           <Icon name="chat" size={17} color={colors.accent} />
-          <Text style={[styles.roleText, { color: colors.muted }]}>LLMHub</Text>
+          <Text style={[styles.roleText, { color: colors.muted }]}>
+            {item.modelName || 'LLMHub'}
+          </Text>
         </View>
+      ) : null}
+      {item.imageUri ? (
+        <Image
+          source={{ uri: item.imageUri }}
+          style={styles.messageImage}
+          accessibilityLabel="Saved image attachment"
+        />
       ) : null}
       <Text selectable style={[styles.messageText, { color: colors.text }]}>
         {item.content || (sending ? 'Thinking…' : 'No response generated.')}
@@ -344,7 +315,16 @@ const MessageBubble = memo(function MessageBubbleContent({
   );
 });
 
+export const cleanedModelName = (value: string) =>
+  value
+    .replace(/\.gguf$/i, '')
+    .split('/')
+    .pop()!
+    .replace(/[-_]/g, ' ')
+    .trim();
 const styles = StyleSheet.create({
+  divider: { alignItems: 'center', paddingVertical: 8 },
+  messageImage: { width: 220, height: 180, borderRadius: 12, marginBottom: 10 },
   container: { flex: 1 },
   messages: { flex: 1 },
   messageContent: { flexGrow: 1, padding: 20, gap: 24, paddingBottom: 24 },

@@ -17,14 +17,15 @@ export function buildPrompt(
   messages: PromptMessage[],
   templateId: PromptTemplateId,
   contextLength: number,
+  outputTokens = 128,
 ): PromptBuildResult {
-  if (templateId !== 'qwen2')
+  if (templateId !== 'qwen2' && templateId !== 'native')
     throw new Error(`Unsupported prompt template: ${templateId}`);
   const system =
     messages.find(message => message.role === 'system')?.content ||
     DEFAULT_SYSTEM_PROMPT;
   const conversation = messages.filter(message => message.role !== 'system');
-  const maxCharacters = Math.max(512, contextLength * 4 - 512);
+  const maxCharacters = Math.max(512, (contextLength - outputTokens) * 4);
   const selected: PromptMessage[] = [];
   let usedCharacters = system.length;
   let truncatedMessage = false;

@@ -29,6 +29,7 @@ export type HubFilters = {
   sort: HubSort;
   task: 'all' | 'text' | 'vision';
   hideGated: boolean;
+  limit?: number;
 };
 const HUB = 'https://huggingface.co';
 const encodeRepo = (id: string) =>
@@ -38,7 +39,7 @@ export function hubSearchUrl(filters: HubFilters): string {
     `filter=gguf`,
     `sort=${filters.sort}`,
     'direction=-1',
-    'limit=30',
+    `limit=${filters.limit || 20}`,
     'full=true',
   ];
   if (filters.search.trim())

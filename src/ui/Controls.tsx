@@ -96,6 +96,7 @@ export function Sheet({
   colors,
   children,
   scroll = true,
+  onShow,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -103,6 +104,7 @@ export function Sheet({
   colors: Colors;
   children: ReactNode;
   scroll?: boolean;
+  onShow?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -111,6 +113,7 @@ export function Sheet({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onShow={onShow}
       statusBarTranslucent
     >
       <KeyboardAvoidingView

@@ -381,11 +381,13 @@ export function ModelPicker({
   onClose,
   controller,
   colors,
+  onSelect,
 }: {
   visible: boolean;
   onClose: () => void;
   controller: ModelController;
   colors: Colors;
+  onSelect?: (model: ModelManifest) => Promise<boolean>;
 }) {
   const models = controller.catalog.filter(model =>
     downloaded(controller.states[model.id] || 'checking'),
@@ -416,7 +418,7 @@ export function ModelPicker({
             onPress={async () => {
               if (
                 controller.states[model.id] === 'active' ||
-                (await controller.load(model))
+                (await (onSelect ? onSelect(model) : controller.load(model)))
               )
                 onClose();
             }}
@@ -432,6 +434,10 @@ export function ModelPicker({
               </Text>
               <Text style={[styles.detailText, { color: colors.muted }]}>
                 {labels[controller.states[model.id]]} ·{' '}
+                {isImported(model)
+                  ? quantization(model.originalFileName)
+                  : 'Q4_K_M'}{' '}
+                ·{' '}
                 {model.byteSize ? formatBytes(model.byteSize) : 'Unknown size'}
               </Text>
             </View>

@@ -64,7 +64,7 @@ test('Android drawer navigates to chat and exposes a model picker', async () => 
   expect(app.route).toBe('chat');
   await Renderer.act(async () => {
     renderer!.root
-      .findByProps({ accessibilityLabel: 'Choose active model' })
+      .findByProps({ accessibilityLabel: 'Choose chat model' })
       .props.onPress();
   });
   expect(app.pickerVisible).toBe(true);

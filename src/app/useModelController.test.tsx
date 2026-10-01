@@ -149,3 +149,35 @@ test('downloads the declared vision projector as a separate verified artifact', 
     expect.any(Function),
   );
 });
+
+test('loads the selected context length and clears it on offload', async () => {
+  const native = context();
+  (initLlama as jest.Mock).mockResolvedValue(native);
+  await Renderer.act(async () => {
+    expect(await models.load(CATALOG[0], 4096)).toBe(true);
+  });
+  expect(initLlama).toHaveBeenCalledWith(
+    expect.objectContaining({ n_ctx: 4096 }),
+  );
+  expect(models.loadedContextLength).toBe(4096);
+  await Renderer.act(async () => {
+    await models.offload();
+  });
+  expect(models.loadedContextLength).toBeNull();
+});
+test('keeps the model loaded while the native image picker is open', async () => {
+  const native = context();
+  (initLlama as jest.Mock).mockResolvedValue(native);
+  await Renderer.act(async () => {
+    await models.load(CATALOG[0]);
+  });
+  await Renderer.act(async () => {
+    models.setExternalUIActive(true);
+    lifecycle('background');
+  });
+  expect(native.release).not.toHaveBeenCalled();
+  await Renderer.act(async () => {
+    models.setExternalUIActive(false);
+  });
+  expect(native.release).toHaveBeenCalled();
+});

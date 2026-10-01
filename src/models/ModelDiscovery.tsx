@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { GGUFVariants } from './GGUFVariants';
+import HubNavigation from './HubNavigation';
+import type { HubMode } from './HubNavigation.types';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  Linking,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -23,13 +26,11 @@ import {
   searchHub,
   timeAgo,
   type HubDetails,
-  type HubFile,
   type HubFilters,
   type HubModel,
   type HubSort,
 } from './huggingFace';
 import {
-  fromHub,
   fromRemote,
   pickGGUF,
   probeSize,
@@ -38,8 +39,8 @@ import {
 const initial: HubFilters = {
   search: '',
   author: '',
-  sort: 'trendingScore',
-  task: 'all',
+  sort: 'lastModified',
+  task: 'text',
   hideGated: false,
 };
 const sizes = (bytes: number) =>
@@ -66,7 +67,22 @@ export function ModelDiscovery({
   colors: Colors;
 }) {
   const [page, setPage] = useState<'add' | 'hub' | 'local' | 'remote'>('add');
+  const [mode, setMode] = useState<HubMode>('trending');
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filters, setFilters] = useState(initial);
+  const query = useMemo(
+    () => ({
+      ...filters,
+      sort:
+        mode === 'trending'
+          ? ('trendingScore' as const)
+          : mode === 'popular'
+          ? ('downloads' as const)
+          : filters.sort,
+      limit: mode === 'browse' ? 20 : 10,
+    }),
+    [filters, mode],
+  );
   const [filterOpen, setFilterOpen] = useState(false);
   const [token, setToken] = useState('');
   const [models, setModels] = useState<HubModel[]>([]);
@@ -76,10 +92,6 @@ export function ModelDiscovery({
   const [retry, setRetry] = useState(0);
   const [repository, setRepository] = useState<HubModel | null>(null);
   const [details, setDetails] = useState<HubDetails | null>(null);
-  const [selected, setSelected] = useState<HubFile | null>(null);
-  const [vision, setVision] = useState(false);
-  const [projector, setProjector] = useState<HubFile | null>(null);
-  const [quant, setQuant] = useState('All');
   const [file, setFile] = useState<PickedGGUF | null>(null);
   const [localProjector, setLocalProjector] = useState<PickedGGUF | null>(null);
   const [name, setName] = useState('');
@@ -97,7 +109,6 @@ export function ModelDiscovery({
       setPage('add');
       setRepository(null);
       setDetails(null);
-      setSelected(null);
       setError('');
     }
   }, [visible]);
@@ -108,19 +119,20 @@ export function ModelDiscovery({
     request.current = abort;
     setError('');
     setLoading(true);
+    setLoadingMore(false);
+    if (!repository) {
+      setModels([]);
+      setNext(null);
+    }
     const timer = setTimeout(
       () => {
         const operation = repository
           ? getHubDetails(repository, token, abort.signal).then(value => {
               if (!abort.signal.aborted) {
                 setDetails(value);
-                setProjector(null);
-                setVision(false);
-                setSelected(null);
-                setQuant('All');
               }
             })
-          : searchHub(filters, token, abort.signal).then(value => {
+          : searchHub(query, token, abort.signal).then(value => {
               if (!abort.signal.aborted) {
                 setModels(value.models);
                 setNext(value.next);
@@ -141,7 +153,7 @@ export function ModelDiscovery({
       clearTimeout(timer);
       abort.abort();
     };
-  }, [visible, page, filters, token, repository, retry]);
+  }, [visible, page, query, token, repository, retry]);
   const field = (
     label: string,
     value: string,
@@ -263,6 +275,7 @@ export function ModelDiscovery({
       }}
       style={[
         s.entry,
+        Platform.OS === 'ios' && s.iosEntry,
         { borderColor: colors.border, backgroundColor: colors.input },
       ]}
     >
@@ -281,12 +294,8 @@ export function ModelDiscovery({
     if (repository) {
       setRepository(null);
       setDetails(null);
-      setSelected(null);
     } else setPage('add');
   };
-  const files = details?.files.filter(f => !f.projector) || [];
-  const projectors = details?.files.filter(f => f.projector && !f.split) || [];
-  const quants = ['All', ...new Set(files.map(f => f.quantization))];
   return (
     <Sheet
       visible={visible}
@@ -305,7 +314,12 @@ export function ModelDiscovery({
       colors={colors}
       scroll={false}
     >
-      <View style={[s.panel, { height: Math.min(height * 0.72, 720) }]}>
+      <View
+        style={[
+          s.panel,
+          page !== 'add' && { height: Math.min(height * 0.72, 720) },
+        ]}
+      >
         {page !== 'add' ? (
           <View style={s.back}>
             <IconButton
@@ -320,7 +334,7 @@ export function ModelDiscovery({
           </View>
         ) : null}
         {page === 'add' ? (
-          <ScrollView contentContainerStyle={s.body}>
+          <View style={s.body}>
             {entry(
               'Hugging Face',
               'Explore repositories and choose a GGUF variant.',
@@ -343,7 +357,7 @@ export function ModelDiscovery({
               Models run on your device. Choose a size that fits your available
               memory and storage.
             </Text>
-          </ScrollView>
+          </View>
         ) : null}
         {page === 'hub' && !repository ? (
           <>
@@ -359,14 +373,27 @@ export function ModelDiscovery({
                 autoCorrect={false}
                 style={[s.searchInput, { color: colors.text }]}
               />
+              <IconButton
+                name="sliders"
+                label="Show Hugging Face filters"
+                colors={colors}
+                onPress={() => setFilterOpen(v => !v)}
+              />
             </View>
-            <View style={s.row}>
-              {chip('Filters', filterOpen, () => setFilterOpen(v => !v))}
-              <Text style={[s.small, { color: colors.muted }]}>
-                {sorts.find(v => v[0] === filters.sort)?.[1]} ·{' '}
-                {filters.task === 'all' ? 'All models' : filters.task}
-              </Text>
-            </View>
+            <HubNavigation
+              mode={mode}
+              task={filters.task}
+              onMode={setMode}
+              onTask={task => setFilters(v => ({ ...v, task }))}
+              colors={colors}
+            />
+            <Text style={[s.small, { color: colors.muted }]}>
+              {mode === 'popular'
+                ? 'Downloads in the last 30 days'
+                : mode === 'trending'
+                ? 'Trending GGUF repositories'
+                : 'Browse all GGUF repositories'}
+            </Text>
             {filterOpen ? (
               <ScrollView
                 style={s.filterPanel}
@@ -377,24 +404,13 @@ export function ModelDiscovery({
                   setFilters(v => ({ ...v, author })),
                 )}
                 <View style={s.wrap}>
-                  {sorts.map(([sort, label]) =>
-                    chip(label, filters.sort === sort, () =>
-                      setFilters(v => ({ ...v, sort })),
-                    ),
-                  )}
-                </View>
-                <View style={s.wrap}>
-                  {(['all', 'text', 'vision'] as const).map(task =>
-                    chip(
-                      task === 'all'
-                        ? 'All types'
-                        : task === 'text'
-                        ? 'Text'
-                        : 'Vision',
-                      filters.task === task,
-                      () => setFilters(v => ({ ...v, task })),
-                    ),
-                  )}
+                  {mode === 'browse'
+                    ? sorts.map(([sort, label]) =>
+                        chip(label, filters.sort === sort, () =>
+                          setFilters(v => ({ ...v, sort })),
+                        ),
+                      )
+                    : null}
                 </View>
                 <View style={s.row}>
                   <Text style={[s.grow, { color: colors.text }]}>
@@ -449,19 +465,17 @@ export function ModelDiscovery({
                   </Text>
                   {stats(item)}
                   <View style={s.wrap}>
-                    {item.vision ? (
-                      <Text
-                        style={[
-                          s.badge,
-                          {
-                            backgroundColor: colors.elevated,
-                            color: colors.accent,
-                          },
-                        ]}
-                      >
-                        Vision
-                      </Text>
-                    ) : null}
+                    <Text
+                      style={[
+                        s.badge,
+                        {
+                          backgroundColor: colors.elevated,
+                          color: colors.accent,
+                        },
+                      ]}
+                    >
+                      {item.vision ? 'Vision' : 'Text'}
+                    </Text>
                     {item.gated ? (
                       <Text
                         style={[
@@ -490,13 +504,14 @@ export function ModelDiscovery({
               ListFooterComponent={
                 next && !loading ? (
                   <Button
-                    label="Load more"
+                    label={loadingMore ? 'Loading…' : 'Show more'}
+                    disabled={loadingMore}
                     colors={colors}
                     onPress={() => {
                       const abort = request.current;
                       if (!abort) return;
-                      setLoading(true);
-                      searchHub(filters, token, abort.signal, next)
+                      setLoadingMore(true);
+                      searchHub(query, token, abort.signal, next)
                         .then(value => {
                           if (!abort.signal.aborted) {
                             setModels(v => [
@@ -512,7 +527,7 @@ export function ModelDiscovery({
                           if (!abort.signal.aborted) setError(e.message);
                         })
                         .finally(() => {
-                          if (!abort.signal.aborted) setLoading(false);
+                          if (!abort.signal.aborted) setLoadingMore(false);
                         });
                     }}
                   />
@@ -522,191 +537,23 @@ export function ModelDiscovery({
           </>
         ) : null}
         {page === 'hub' && repository ? (
-          <>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={s.body}
-            >
-              <Text style={[s.small, { color: colors.muted }]}>
-                {repository.author}
-              </Text>
+          details && !loading ? (
+            <GGUFVariants
+              details={details}
+              token={token}
+              controller={controller}
+              colors={colors}
+              onImported={close}
+            />
+          ) : (
+            <View style={s.body}>
               <Text style={[s.title, { color: colors.text }]}>
                 {repository.name}
               </Text>
-              {stats(repository)}
-              {repository.gated ? (
-                <Text style={{ color: colors.muted }}>
-                  Accept this repository’s license on Hugging Face, then enter a
-                  read token in Filters.
-                </Text>
-              ) : null}
-              <Pressable
-                accessibilityRole="link"
-                onPress={() =>
-                  Linking.openURL(
-                    `https://huggingface.co/${repository.id}`,
-                  ).catch(() => setError('Unable to open the repository.'))
-                }
-              >
-                <Text style={{ color: colors.accent }}>View repository ↗</Text>
-              </Pressable>
               {loading ? <ActivityIndicator color={colors.accent} /> : null}
               {footer}
-              {details ? (
-                <>
-                  <Text style={[s.small, { color: colors.muted }]}>
-                    {details.license} · {files.length} GGUF variants
-                  </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={s.wrap}
-                  >
-                    {quants.map(q => chip(q, quant === q, () => setQuant(q)))}
-                  </ScrollView>
-                  {files
-                    .filter(f => quant === 'All' || f.quantization === quant)
-                    .map(f => (
-                      <Pressable
-                        key={f.path}
-                        accessibilityRole="button"
-                        accessibilityState={{
-                          selected: selected?.path === f.path,
-                          disabled: f.split,
-                        }}
-                        accessibilityLabel={`Select ${f.path}`}
-                        disabled={f.split}
-                        onPress={() => setSelected(f)}
-                        style={[
-                          s.file,
-                          f.split && s.disabled,
-                          {
-                            backgroundColor: colors.input,
-                            borderColor:
-                              selected?.path === f.path
-                                ? colors.accent
-                                : colors.border,
-                          },
-                        ]}
-                      >
-                        <Text style={[s.fileName, { color: colors.text }]}>
-                          {f.path}
-                        </Text>
-                        <View style={s.stats}>
-                          <Text style={{ color: colors.accent }}>
-                            {f.quantization}
-                          </Text>
-                          <Text style={{ color: colors.muted }}>
-                            {sizes(f.size)}
-                          </Text>
-                          {selected?.path === f.path ? (
-                            <Icon
-                              name="check"
-                              color={colors.accent}
-                              size={18}
-                            />
-                          ) : null}
-                        </View>
-                        <Text style={[s.small, { color: colors.muted }]}>
-                          {f.split
-                            ? 'Split GGUF files are not supported'
-                            : f.sha256
-                            ? 'Published SHA-256 verified during download'
-                            : 'No published checksum · GGUF format checked'}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  {!files.length ? (
-                    <Text style={{ color: colors.muted }}>
-                      No model GGUF files in this repository.
-                    </Text>
-                  ) : null}
-                  {projectors.length ? (
-                    <>
-                      <View style={s.row}>
-                        <View style={s.grow}>
-                          <Text style={[s.heading, { color: colors.text }]}>
-                            Enable vision
-                          </Text>
-                          <Text style={[s.small, { color: colors.muted }]}>
-                            Choose a projector matching your model.
-                          </Text>
-                        </View>
-                        <Switch value={vision} onValueChange={setVision} />
-                      </View>
-                      {vision
-                        ? projectors.map(f => (
-                            <Pressable
-                              key={f.path}
-                              accessibilityRole="button"
-                              accessibilityState={{
-                                selected: projector?.path === f.path,
-                              }}
-                              onPress={() => setProjector(f)}
-                              style={[
-                                s.file,
-                                {
-                                  borderColor:
-                                    projector?.path === f.path
-                                      ? colors.accent
-                                      : colors.border,
-                                },
-                              ]}
-                            >
-                              <Text style={{ color: colors.text }}>
-                                {f.path}
-                              </Text>
-                              <Text style={{ color: colors.muted }}>
-                                {sizes(f.size)}{' '}
-                                {projector?.path === f.path ? '✓' : ''}
-                              </Text>
-                            </Pressable>
-                          ))
-                        : null}
-                    </>
-                  ) : null}
-                  <Text style={[s.small, { color: colors.muted }]}>
-                    File size is storage use, not peak memory use. Larger
-                    quantizations may exceed your device’s RAM.
-                  </Text>
-                </>
-              ) : null}
-            </ScrollView>
-            {details && !loading ? (
-              <View style={s.footer}>
-                <Button
-                  label={
-                    working
-                      ? 'Starting download…'
-                      : `Download${
-                          selected
-                            ? ' · ' +
-                              sizes(
-                                selected.size +
-                                  (vision ? projector?.size || 0 : 0),
-                              )
-                            : ''
-                        }`
-                  }
-                  colors={colors}
-                  disabled={!selected || (vision && !projector) || working}
-                  icon="download"
-                  onPress={() =>
-                    run(() =>
-                      controller.addRemote(
-                        fromHub(
-                          details!,
-                          selected!,
-                          vision ? projector! : undefined,
-                        ),
-                        token,
-                      ),
-                    )
-                  }
-                />
-              </View>
-            ) : null}
-          </>
+            </View>
+          )
         ) : null}
         {page === 'local' ? (
           <ScrollView
@@ -816,6 +663,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
   },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  iosEntry: { borderRadius: 12, paddingVertical: 14 },
   entry: {
     flexDirection: 'row',
     alignItems: 'center',

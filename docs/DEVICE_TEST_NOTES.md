@@ -1,10 +1,13 @@
 # Device Test Notes
 
-Automated checks run on 2026-09-30:
+Automated checks for device-aware discovery and chat run on 2026-10-01:
 
-- `npm test -- --runInBand`: 5 suites, 16 tests passed.
+- `npm test -- --runInBand`: the current suite covers browsing, suitability estimates, settings, chat switching, saved images, imports, and model lifecycle.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
+- Android and iOS production JavaScript bundles: passed.
+
+Native builds and hardware checks for the new memory readers are still pending. See [MODEL_IMPORTS.md](MODEL_IMPORTS.md) for rebuild commands and feature-specific phone checks.
 
 The following release-gate checks require hardware and remain open:
 

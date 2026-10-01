@@ -1,3 +1,13 @@
+jest.mock('react-native-fs', () => ({
+  __esModule: true,
+  default: {
+    DocumentDirectoryPath: '/docs',
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    copyFile: jest.fn().mockResolvedValue(undefined),
+    exists: jest.fn().mockResolvedValue(false),
+    unlink: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,23 +42,25 @@ afterEach(async () => {
 function Harness({
   context,
   native = false,
+  vision = false,
 }: {
   context: LlamaContext | null;
   native?: boolean;
+  vision?: boolean;
 }) {
   chat = useChatController({
     context,
     model: native
       ? { ...SUPPORTED_MODELS[0], promptTemplateId: 'native' }
       : SUPPORTED_MODELS[0],
-    vision: false,
+    vision,
   });
   return (
     <ChatView
       chat={chat}
       colors={darkColors}
       active={Boolean(context)}
-      vision={false}
+      vision={vision}
       onModels={() => {}}
       onPicker={() => {}}
       settingsVisible={false}
@@ -172,5 +184,167 @@ test('sends structured messages to imported model chat templates', async () => {
   expect(completion.mock.calls[0][0].messages).toEqual([
     { role: 'system', content: 'You are a helpful assistant.' },
     { role: 'user', content: 'Hello from an imported model' },
+  ]);
+});
+
+test('keeps a manually renamed topic and attributes replies to the active model', async () => {
+  const completion = jest.fn().mockResolvedValue({ text: 'Response' });
+  const context = {
+    completion,
+    stopCompletion: jest.fn(),
+  } as unknown as LlamaContext;
+  await ReactTestRenderer.act(async () => {
+    renderers.push(ReactTestRenderer.create(<Harness context={context} />));
+  });
+  await ReactTestRenderer.act(async () => {
+    chat.renameConversation('My custom topic');
+    chat.setDraft('A different first message');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(chat.title).toBe('My custom topic');
+  expect(chat.messages[1].modelId).toBe(SUPPORTED_MODELS[0].id);
+});
+
+test('switches from text to vision, keeps history, and reuses saved images in vision responses', async () => {
+  let currentModel = {
+    ...SUPPORTED_MODELS[0],
+    promptTemplateId: 'native' as const,
+  };
+  let vision = false;
+  const completion = jest.fn().mockResolvedValue({ text: 'Reply' });
+  const context = {
+    completion,
+    stopCompletion: jest.fn(),
+  } as unknown as LlamaContext;
+  function SwitchingHarness() {
+    chat = useChatController({ context, model: currentModel, vision });
+    return null;
+  }
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<SwitchingHarness />);
+    renderers.push(renderer);
+  });
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('First text turn');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  currentModel = {
+    ...currentModel,
+    id: 'vision-model',
+    displayName: 'Vision model',
+  };
+  vision = true;
+  await ReactTestRenderer.act(async () => {
+    renderer!.update(<SwitchingHarness />);
+  });
+  expect(chat.messages.filter(m => m.event === 'model-switch')).toHaveLength(1);
+  expect(chat.messages[0].content).toBe('First text turn');
+  await ReactTestRenderer.act(async () => {
+    chat.setImageUri('file:///docs/chat-images/saved.jpg');
+    chat.setDraft('Describe this picture');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(
+    chat.messages.find(m => m.content === 'Describe this picture')?.imageUri,
+  ).toBe('file:///docs/chat-images/saved.jpg');
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('What colour was it?');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  const sent = completion.mock.calls.at(-1)![0].messages;
+  expect(sent.some((m: { content: unknown }) => Array.isArray(m.content))).toBe(
+    true,
+  );
+  expect(
+    sent.every(
+      (m: { content: unknown }) =>
+        typeof m.content !== 'string' || !m.content.startsWith('Switched to'),
+    ),
+  ).toBe(true);
+  currentModel = {
+    ...currentModel,
+    id: 'text-model',
+    displayName: 'Text model',
+  };
+  vision = false;
+  await ReactTestRenderer.act(async () => {
+    renderer!.update(<SwitchingHarness />);
+  });
+  expect(chat.imageContextUnavailable).toBe(true);
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Continue in text');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(
+    completion.mock.calls
+      .at(-1)![0]
+      .messages.every(
+        (m: { content: unknown }) => typeof m.content === 'string',
+      ),
+  ).toBe(true);
+});
+
+test('restores image history and a custom system instruction after restart', async () => {
+  const uri = 'file:///docs/chat-images/persisted.jpg';
+  const completion = jest.fn().mockResolvedValue({ text: 'Seen' });
+  const context = {
+    completion,
+    stopCompletion: jest.fn(),
+  } as unknown as LlamaContext;
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) =>
+    key === '@llmhub/conversations-v2'
+      ? JSON.stringify({
+          currentId: 'saved',
+          conversations: [
+            {
+              id: 'saved',
+              title: 'Saved image chat',
+              customTitle: true,
+              systemPrompt: 'Describe colours only.',
+              updatedAt: Date.now(),
+              messages: [
+                {
+                  id: 'image',
+                  role: 'user',
+                  content: 'Describe this',
+                  imageUri: uri,
+                },
+              ],
+            },
+          ],
+        })
+      : null,
+  );
+  await ReactTestRenderer.act(async () => {
+    renderers.push(
+      ReactTestRenderer.create(<Harness context={context} native vision />),
+    );
+  });
+  expect(chat.messages[0].imageUri).toBe(uri);
+  expect(chat.systemPrompt).toBe('Describe colours only.');
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Continue');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(chat.title).toBe('Saved image chat');
+  expect(completion.mock.calls[0][0].messages[0].content).toBe(
+    'Describe colours only.',
+  );
+  expect(completion.mock.calls[0][0].messages[1].content).toEqual([
+    { type: 'text', text: 'Describe this' },
+    { type: 'image_url', image_url: { url: uri } },
   ]);
 });
