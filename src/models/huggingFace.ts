@@ -29,6 +29,7 @@ export type HubFilters = {
   sort: HubSort;
   task: 'all' | 'text' | 'vision';
   hideGated: boolean;
+  maxParameters?: '4B' | '8B' | 'all';
   limit?: number;
 };
 const HUB = 'https://huggingface.co';
@@ -42,6 +43,9 @@ export function hubSearchUrl(filters: HubFilters): string {
     `limit=${filters.limit || 20}`,
     'full=true',
   ];
+  const maximum = filters.maxParameters ?? '4B';
+  if (maximum !== 'all')
+    params.push(`num_parameters=${encodeURIComponent(`max:${maximum}`)}`);
   if (filters.search.trim())
     params.push(`search=${encodeURIComponent(filters.search.trim())}`);
   if (filters.author.trim())
@@ -73,6 +77,30 @@ export function parseHubModel(data: Record<string, unknown>): HubModel {
         ['vision', 'multimodal', 'image-text-to-text'].includes(String(tag)),
       ),
   };
+}
+export function modelParameterCount(
+  data: Record<string, unknown>,
+): number | null {
+  const gguf = data.gguf as { total?: number } | undefined;
+  const safetensors = data.safetensors as { total?: number } | undefined;
+  const counts = [Number(gguf?.total), Number(safetensors?.total)].filter(
+    value => Number.isFinite(value) && value > 0,
+  );
+  const name =
+    String(data.id || data.modelId || '')
+      .split('/')
+      .pop() || '';
+  // Names are a fallback and a conservative guard against incomplete Hub metadata.
+  for (const match of name.matchAll(
+    /(?:^|[^a-z0-9])(?:(\d+)x)?(\d+(?:\.\d+)?)\s*([bm])(?=$|[^a-z0-9])/gi,
+  )) {
+    counts.push(
+      Number(match[2]) *
+        (match[3].toLowerCase() === 'b' ? 1e9 : 1e6) *
+        Number(match[1] || 1),
+    );
+  }
+  return counts.length ? Math.max(...counts) : null;
 }
 export function quantization(path: string): string {
   return (
@@ -170,20 +198,42 @@ export async function searchHub(
 ): Promise<{ models: HubModel[]; next: string | null }> {
   if (page && !page.startsWith(`${HUB}/api/models?`))
     throw new Error('Invalid pagination URL.');
-  const response = await hubRequest(
-    page || hubSearchUrl(filters),
-    token,
-    signal,
-  );
-  const data = await response.json();
-  if (!Array.isArray(data))
-    throw new Error('Hugging Face returned an unexpected response.');
-  return {
-    models: data
-      .map(parseHubModel)
-      .filter(model => model.id && (!filters.hideGated || !model.gated)),
-    next: nextPage(response.headers.get('link')),
-  };
+  const maximum = filters.maxParameters ?? '4B';
+  const limit = filters.limit || 20;
+  const models: HubModel[] = [];
+  const seen = new Set<string>();
+  const visited = new Set<string>();
+  let url: string | null = page || hubSearchUrl(filters);
+  // Refill after local exclusions while preserving the server's ranked order.
+  // Bound requests so sparse metadata does not make browsing block indefinitely.
+  for (let batch = 0; url && batch < 5 && models.length < limit; batch++) {
+    if (visited.has(url)) {
+      url = null;
+      break;
+    }
+    visited.add(url);
+    const response = await hubRequest(url, token, signal);
+    const data = await response.json();
+    if (!Array.isArray(data))
+      throw new Error('Hugging Face returned an unexpected response.');
+    for (const entry of data) {
+      const count = modelParameterCount(entry);
+      const model = parseHubModel(entry);
+      if (
+        maximum !== 'all' &&
+        (count === null || count > (maximum === '4B' ? 4e9 : 8e9))
+      )
+        continue;
+      if (!model.id || seen.has(model.id) || (filters.hideGated && model.gated))
+        continue;
+      seen.add(model.id);
+      models.push(model);
+    }
+    url = nextPage(response.headers.get('link'));
+    if (url && models.length < limit)
+      url = url.replace(/([?&]limit=)\d+/, `$1${limit - models.length}`);
+  }
+  return { models, next: url };
 }
 export async function getHubDetails(
   model: HubModel,
