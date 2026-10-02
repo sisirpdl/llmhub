@@ -1,5 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { memo, useRef, useState } from 'react';
+import { messageText, imageUrls } from './chatDocument';
 import {
   FlatList,
   Image,
@@ -60,7 +61,7 @@ export function ChatView({
     >
       <FlatList
         ref={list}
-        data={chat.messages}
+        data={chat.messageItems}
         renderItem={renderMessage}
         keyExtractor={item => item.id}
         style={styles.messages}
@@ -171,7 +172,10 @@ export function ChatView({
       ) : null}
       {chat.retrievedSources.length ? (
         <Text style={[styles.notice, { color: colors.muted }]}>
-          Sources used: {chat.retrievedSources.map((source, index) => `[${index + 1}] ${source.documentName}`).join(' · ')}
+          Sources used:{' '}
+          {chat.retrievedSources
+            .map((source, index) => `[${index + 1}] ${source.documentName}`)
+            .join(' · ')}
         </Text>
       ) : null}
       <Text
@@ -287,7 +291,7 @@ const MessageBubble = memo(function MessageBubbleContent({
     return (
       <View style={styles.divider}>
         <Text style={[styles.caption, { color: colors.muted }]}>
-          {item.content}
+          {messageText(item)}
         </Text>
       </View>
     );
@@ -304,19 +308,40 @@ const MessageBubble = memo(function MessageBubbleContent({
         <View style={styles.role}>
           <Icon name="chat" size={17} color={colors.accent} />
           <Text style={[styles.roleText, { color: colors.muted }]}>
-            {item.modelName || 'LLMHub'}
+            {item.role === 'tool'
+              ? `Tool: ${item.name || item.tool_call_id}`
+              : item.modelName || 'LLMHub'}
           </Text>
         </View>
       ) : null}
-      {item.imageUri ? (
-        <Image
-          source={{ uri: item.imageUri }}
-          style={styles.messageImage}
-          accessibilityLabel="Saved image attachment"
-        />
+      {imageUrls(item)
+        .filter(
+          uri => uri.startsWith('file://') || uri.startsWith('data:image/'),
+        )
+        .map((uri, index) => (
+          <Image
+            key={`${index}-${uri}`}
+            source={{ uri }}
+            style={styles.messageImage}
+            accessibilityLabel="Saved image attachment"
+          />
+        ))}
+      {imageUrls(item).some(url => url.startsWith('https://')) ? (
+        <Text style={{ color: colors.muted }}>
+          External image reference · not fetched
+        </Text>
       ) : null}
       <Text selectable style={[styles.messageText, { color: colors.text }]}>
-        {item.content || (sending ? 'Thinking…' : 'No response generated.')}
+        {messageText(item) ||
+          (item.tool_calls
+            ? `Tool call: ${item.tool_calls
+                .map(call => call.function.name)
+                .join(', ')}`
+            : item.role === 'tool'
+            ? 'Tool result'
+            : sending
+            ? 'Thinking…'
+            : 'No text content.')}
       </Text>
     </View>
   );

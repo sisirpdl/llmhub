@@ -20,7 +20,6 @@ const destinations: { route: Route; title: string; icon: IconName }[] = [
   { route: 'chat', title: 'Chat', icon: 'chat' },
   { route: 'models', title: 'Models', icon: 'models' },
   { route: 'settings', title: 'Settings', icon: 'settings' },
-  { route: 'info', title: 'App Info', icon: 'info' },
 ];
 export default function AndroidAppShell({ app }: { app: AppController }) {
   const insets = useSafeAreaInsets();
@@ -122,9 +121,12 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
               />
               <IconButton
                 name="more"
-                label="Open chat settings"
+                label="Open chat menu"
                 colors={colors}
-                onPress={() => app.setChatSettingsVisible(true)}
+                disabled={
+                  app.chat.sending || !app.chat.loaded || Boolean(app.transfer)
+                }
+                onPress={app.openChatMenu}
               />
             </>
           ) : app.route === 'models' ? (
@@ -217,6 +219,24 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                   </Text>
                 </Pressable>
               ))}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Import chat"
+                disabled={
+                  app.chat.sending || !app.chat.loaded || Boolean(app.transfer)
+                }
+                onPress={() => {
+                  setDrawer(false);
+                  app.importChat();
+                }}
+                android_ripple={{ color: colors.border }}
+                style={styles.destination}
+              >
+                <Icon name="download" color={colors.text} size={26} />
+                <Text style={[styles.destinationText, { color: colors.text }]}>
+                  Import chat
+                </Text>
+              </Pressable>
               <View
                 style={[styles.divider, { backgroundColor: colors.border }]}
               />

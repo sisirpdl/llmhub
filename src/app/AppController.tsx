@@ -1,18 +1,20 @@
-import { Alert } from 'react-native';
+import { ActionSheetIOS, Alert, Platform } from 'react-native';
+import { exportChat, importChatFile } from '../chat/chatTransfer';
+import { removeChatImages } from '../chat/attachments';
 import {
   useModelSettings,
   validateSettings,
   type ModelSettings,
 } from '../settings/modelSettings';
 import type { ModelManifest } from '../models/modelCatalog';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'react-native';
 import { useModelController, isVision } from './useModelController';
 import { useChatController } from '../chat/useChatController';
 import { darkColors, lightColors, type Appearance } from '../ui/theme';
 import { useDocumentIndex } from '../documents/useDocumentIndex';
-export type Route = 'chat' | 'models' | 'settings' | 'info';
+export type Route = 'chat' | 'models' | 'settings';
 export function useAppController() {
   const systemDark = useColorScheme() === 'dark';
   const [appearance, setAppearance] = useState<Appearance>('dark');
@@ -24,6 +26,9 @@ export function useAppController() {
   const [chatSettingsVisible, setChatSettingsVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [documentsVisible, setDocumentsVisible] = useState(false);
+  const [chatMenuVisible, setChatMenuVisible] = useState(false);
+  const [transfer, setTransfer] = useState<'import' | 'export' | null>(null);
+  const transferBusy = useRef(false);
   const settings = useModelSettings();
   const documents = useDocumentIndex();
   const [renameVisible, setRenameVisible] = useState(false);
@@ -116,12 +121,65 @@ export function useAppController() {
     }
     return models.load(model);
   }
+  async function transferChat(kind: 'import' | 'export') {
+    if (transferBusy.current || chat.sending || !chat.loaded) return;
+    transferBusy.current = true;
+    setTransfer(kind);
+    models.setExternalUIActive(true);
+    let importedImages: string[] = [];
+    try {
+      if (kind === 'export') {
+        const saved = await exportChat(chat.exportDocument(), chat.title);
+        if (saved)
+          models.setNotice(
+            'Chat exported as JSON. Keep it private; it includes messages and attached images.',
+          );
+      } else {
+        const result = await importChatFile();
+        if (!result) return;
+        importedImages = result.images;
+        await chat.importDocument(result.document);
+        importedImages = [];
+        setHistoryVisible(false);
+        setRoute('chat');
+        models.setNotice(
+          `Chat imported · ${result.document.model}. Importing does not download or load a model; choose an installed model to continue.`,
+        );
+      }
+    } catch (e) {
+      await removeChatImages(importedImages);
+      models.setNotice(
+        e instanceof Error ? e.message : `Unable to ${kind} this chat.`,
+      );
+    } finally {
+      transferBusy.current = false;
+      setTransfer(null);
+      models.setExternalUIActive(false);
+    }
+  }
+  function openChatMenu() {
+    if (chat.sending || !chat.loaded || transferBusy.current) return;
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Export chat'], cancelButtonIndex: 0 },
+        index => {
+          if (index === 1) transferChat('export');
+        },
+      );
+    } else setChatMenuVisible(true);
+  }
   function requestImageAttachment() {
     if (chat.sending) return;
     if (models.context && isVision(models.model)) chat.attachImage();
     else setVisionSetupVisible(true);
   }
   return {
+    transfer,
+    importChat: () => transferChat('import'),
+    exportChat: () => transferChat('export'),
+    openChatMenu,
+    chatMenuVisible,
+    setChatMenuVisible,
     requestImageAttachment,
     visionSetupVisible,
     setVisionSetupVisible,
