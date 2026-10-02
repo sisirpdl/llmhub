@@ -6,7 +6,7 @@ Open Models → + (Android) or Add model (iOS), then select a source.
 - **Local model:** choose a `.gguf` using the system file picker. Optionally choose a matching vision projector. Files are copied to private app storage, checked for GGUF format, hashed, and registered. The original files are kept.
 - **Remote model:** enter a direct HTTPS download URL, optional display name, and optional published SHA-256. This downloads a model for on-device inference; it does not connect to a remote inference API.
 
-Imported models persist across restarts and share the existing load, offload, delete, chat, and download progress controls. Hugging Face downloads are pinned to the repository revision and checked against published LFS SHA-256 digests when available. Without a published checksum, GGUF format is checked and a local checksum is saved for subsequent integrity checks. Imported models use llama.rn's embedded chat-template formatting with structured messages.
+Imported models persist across restarts and share the existing load, offload, delete, chat, and download progress controls. Hugging Face downloads are pinned to the repository revision and checked against published LFS SHA-256 digests when available. Without a published checksum, GGUF format is checked and a local checksum is saved for subsequent integrity checks. All chat models use llama.rn's embedded chat-template formatting with native structured messages.
 
 Split GGUF shards are shown but cannot be imported. Model size is disk use, not peak RAM use. Not every Hub model or projector is compatible with the installed llama backend. A failed load preserves the file and displays the backend error.
 
@@ -97,3 +97,10 @@ The catalog uses one Your models section for installed models, imports, download
 The chat + image action is available even without a loaded vision model. It offers an installed vision model to load, displays pending progress, or suggests one vision download only when needed. Starting that download opens Your models. After loading an installed vision model, tap + again to select an image. Failed loading leaves the sheet open and displays the error. Android and iOS share these behaviors while retaining their shell and control styles.
 
 This UI change keeps the current Qwen2.5 1.5B and SmolVLM Instruct packages; proposed replacement defaults require native phone testing before promotion.
+
+
+## Chat interchange and local documents
+
+Model-file imports are separate from chat import/export. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md) for the single native OpenAI JSON format, portable images, migration and file controls. Importing a chat does not download or load its named model. App Info/diagnostics now live at the end of Settings.
+
+Settings → Manage local documents imports Markdown/TXT for local keyword retrieval. PDF extraction, embeddings and navigable/validated citations remain planned in [ARCHITECTURE.md](ARCHITECTURE.md).
