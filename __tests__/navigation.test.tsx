@@ -102,3 +102,24 @@ test('iOS uses bottom tabs and conversation history instead of a drawer', async 
   expect(app.historyVisible).toBe(true);
   await Renderer.act(async () => renderer!.unmount());
 });
+
+test.each(['android', 'ios'] as const)(
+  '%s offers vision setup when attaching without a loaded vision model',
+  async platform => {
+    let renderer: Renderer.ReactTestRenderer;
+    await Renderer.act(async () => {
+      renderer = Renderer.create(<Harness platform={platform} />);
+    });
+    await Renderer.act(async () => {
+      app.setRoute('chat');
+    });
+    await Renderer.act(async () => {
+      renderer!.root
+        .findByProps({ accessibilityLabel: 'Attach image' })
+        .props.onPress();
+    });
+    expect(app.visionSetupVisible).toBe(true);
+    expect(app.route).toBe('chat');
+    await Renderer.act(async () => renderer!.unmount());
+  },
+);

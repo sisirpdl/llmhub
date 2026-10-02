@@ -16,6 +16,8 @@ import {
 } from '../app/useModelController';
 import { isImported } from './importedModels';
 import { quantization } from './huggingFace';
+import { SUPPORTED_MODELS } from './modelCatalog';
+import { ModelSuggestion } from './ModelSuggestion';
 import type { ModelManifest } from './modelCatalog';
 import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
@@ -274,80 +276,57 @@ export function ModelCatalogView({
   onDiscover: () => void;
   onChat: () => void;
 }) {
-  const [readyOpen, setReadyOpen] = useState(true);
-  const [availableOpen, setAvailableOpen] = useState(true);
-  const ready = controller.catalog.filter(model =>
-    downloaded(controller.states[model.id] || 'checking'),
+  const yours = controller.catalog.filter(
+    model =>
+      isImported(model) ||
+      !['checking', 'not-downloaded'].includes(
+        controller.states[model.id] || 'checking',
+      ),
   );
-  const available = controller.catalog.filter(
-    model => !downloaded(controller.states[model.id] || 'checking'),
+  const suggestion = controller.catalog.find(
+    model => model.id === SUPPORTED_MODELS[0]?.id,
+  );
+  const hasText = yours.some(
+    model =>
+      !isVision(model) &&
+      (downloaded(controller.states[model.id]) ||
+        ['downloading', 'validating'].includes(controller.states[model.id])),
   );
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.catalog}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Toggle ready models"
-          accessibilityState={{ expanded: readyOpen }}
-          onPress={() => setReadyOpen(value => !value)}
-          style={styles.section}
-        >
+        <View style={styles.section}>
           <Text
             accessibilityRole="header"
             style={[styles.sectionTitle, { color: colors.accent }]}
           >
-            {Platform.OS === 'ios' ? 'On this iPhone' : 'Ready to Use'}
+            Your models
           </Text>
-          <Icon name={readyOpen ? 'up' : 'down'} color={colors.muted} />
-        </Pressable>
-        {readyOpen ? (
-          ready.length ? (
-            ready.map(model => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                controller={controller}
-                colors={colors}
-                onChat={onChat}
-              />
-            ))
-          ) : (
-            <Text style={[styles.empty, { color: colors.muted }]}>
-              Your downloaded models will appear here.
-            </Text>
-          )
+        </View>
+        {yours.map(model => (
+          <ModelCard
+            key={model.id}
+            model={model}
+            controller={controller}
+            colors={colors}
+            onChat={onChat}
+          />
+        ))}
+        {!yours.length ? (
+          <Text style={[styles.empty, { color: colors.muted }]}>
+            Downloaded models and download progress appear here.
+          </Text>
         ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Toggle available models"
-          accessibilityState={{ expanded: availableOpen }}
-          onPress={() => setAvailableOpen(value => !value)}
-          style={styles.section}
-        >
-          <View>
-            <Text
-              accessibilityRole="header"
-              style={[styles.sectionTitle, { color: colors.accent }]}
-            >
-              Available to Download
-            </Text>
-            <Text style={[styles.sectionHint, { color: colors.muted }]}>
-              Browse or import a GGUF model
-            </Text>
-          </View>
-          <Icon name={availableOpen ? 'up' : 'down'} color={colors.muted} />
-        </Pressable>
-        {availableOpen
-          ? available.map(model => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                controller={controller}
-                colors={colors}
-                onChat={onChat}
-              />
-            ))
-          : null}
+        {!hasText &&
+        suggestion &&
+        !yours.some(model => model.id === suggestion.id) ? (
+          <ModelSuggestion
+            model={suggestion}
+            controller={controller}
+            colors={colors}
+            onBrowse={onDiscover}
+          />
+        ) : null}
         <View style={[styles.storage, { borderColor: colors.border }]}>
           <Icon name="shield" color={colors.muted} size={18} />
           <Text style={[styles.storageText, { color: colors.muted }]}>
