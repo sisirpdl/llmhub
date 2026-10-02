@@ -35,6 +35,9 @@ local.properties
 !debug.keystore
 .kotlin/
 
+# Local llama.cpp Hexagon acceleration binaries
+android/app/src/main/assets/ggml-hexagon/
+
 # node.js
 #
 node_modules/
