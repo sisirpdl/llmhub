@@ -15,6 +15,7 @@ import {
   ModelDiscovery,
   ModelPicker,
 } from '../models/ModelCatalogView';
+import { VisionSetupSheet } from '../models/VisionSetupSheet';
 import { isVision } from './useModelController';
 import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
@@ -57,12 +58,14 @@ export function ScreenContent({ app }: { app: AppController }) {
           settingsVisible={app.chatSettingsVisible}
           onCloseSettings={() => app.setChatSettingsVisible(false)}
           onSettings={() => app.setChatSettingsVisible(true)}
+          onAttachImage={app.requestImageAttachment}
         />
       ) : app.route === 'settings' ? (
         <SettingsScreen app={app} />
       ) : (
         <InfoScreen app={app} />
       )}
+      <VisionSetupSheet app={app} />
       <ModelDiscovery
         visible={app.discoveryVisible}
         onClose={() => app.setDiscoveryVisible(false)}

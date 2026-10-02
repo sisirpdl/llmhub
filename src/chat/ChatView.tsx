@@ -23,6 +23,7 @@ export function ChatView({
   onModels,
   onPicker,
   onSettings,
+  onAttachImage,
 }: {
   chat: ChatController;
   colors: Colors;
@@ -33,6 +34,7 @@ export function ChatView({
   settingsVisible?: boolean;
   onCloseSettings?: () => void;
   onSettings?: () => void;
+  onAttachImage?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
@@ -209,13 +211,13 @@ export function ChatView({
           style={[styles.input, { color: colors.text }]}
         />
         <View style={styles.composerTools}>
-          {vision ? (
+          {vision || onAttachImage ? (
             <IconButton
               name="plus"
               label="Attach image"
               colors={colors}
-              disabled={!active || chat.sending}
-              onPress={chat.attachImage}
+              disabled={chat.sending || (!onAttachImage && !active)}
+              onPress={onAttachImage || chat.attachImage}
             />
           ) : null}
           <Pressable

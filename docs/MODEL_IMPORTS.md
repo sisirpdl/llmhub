@@ -89,3 +89,11 @@ This update adds a native memory reader in both app targets. A Metro reload alon
 All three Hub tabs default to models up to 4B parameters. Filters offer up to 8B and Any size, and search retains the selected size range. The API parameter filter is backed by a conservative local check using available GGUF/safetensors totals and parameter counts in repository names. Unknown sizes are excluded from limited lists and remain accessible under Any size. Bounded pagination refills after exclusions while preserving ranking; sparse results can show fewer entries with Show more available. Parameter count is a discovery hint, not a RAM-fit guarantee.
 
 The Supported empty state distinguishes unavailable device memory, missing/unsupported GGUF metadata, missing vision projector, split files, and insufficient RAM headroom. Context chips are explicitly labeled as token counts. A lower-context suggestion appears only when recalculation predicts a fit; unknown estimates never imply incompatibility.
+
+## Your models and contextual suggestions
+
+The catalog uses one Your models section for installed models, imports, downloads, verification, and failures. There is no Available to Download section. A compact text starter recommendation appears only when no text model is ready/loading/downloading and the starter is not already listed with a retry state. Starting a download moves its progress into Your models. Storage includes a 256 MiB reserve and the vision projector; insufficient space disables the suggestion download. Find another opens the three-source import menu.
+
+The chat + image action is available even without a loaded vision model. It offers an installed vision model to load, displays pending progress, or suggests one vision download only when needed. Starting that download opens Your models. After loading an installed vision model, tap + again to select an image. Failed loading leaves the sheet open and displays the error. Android and iOS share these behaviors while retaining their shell and control styles.
+
+This UI change keeps the current Qwen2.5 1.5B and SmolVLM Instruct packages; proposed replacement defaults require native phone testing before promotion.

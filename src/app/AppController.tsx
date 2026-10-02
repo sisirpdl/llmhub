@@ -24,6 +24,7 @@ export function useAppController() {
   const [historyVisible, setHistoryVisible] = useState(false);
   const settings = useModelSettings();
   const [renameVisible, setRenameVisible] = useState(false);
+  const [visionSetupVisible, setVisionSetupVisible] = useState(false);
   const models = useModelController({
     contextLengthFor: model => settings.forModel(model).contextLength,
   });
@@ -111,7 +112,15 @@ export function useAppController() {
     }
     return models.load(model);
   }
+  function requestImageAttachment() {
+    if (chat.sending) return;
+    if (models.context && isVision(models.model)) chat.attachImage();
+    else setVisionSetupVisible(true);
+  }
   return {
+    requestImageAttachment,
+    visionSetupVisible,
+    setVisionSetupVisible,
     settings,
     applyModelSettings,
     switchModel,
