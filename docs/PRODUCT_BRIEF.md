@@ -13,7 +13,7 @@ This document records the implemented capabilities and product direction. Techni
 | Capability | Current state | Next requirement |
 | --- | --- | --- |
 | Text chat | Streaming, Stop, native OpenAI messages, portable JSON import/export, local history, automatic/manual titles, model attribution and switching. | Full markdown/code highlighting and message edit/regenerate. |
-| Local document retrieval | Markdown/TXT import, local chunks, keyword retrieval, reference context and latest-response source labels. | PDF extraction, embeddings, exact token budgets and navigable/validated citations. |
+| Local document retrieval | PDF/Markdown/TXT import, chat-specific attachments, cached page-aware chunks, keyword retrieval and latest-response passage inspection. | OCR, embeddings, exact token budgets, persistent provenance and validated citations. |
 | Vision | Image attachments saved locally; compatible model/projector loading and switch warnings. | Validate physical-device compatibility and memory independently. |
 | Model hub | Hugging Face, local GGUF, direct HTTPS imports; phone-size filtering, variant RAM/storage estimates. | Curated recommendations and measured chip-specific guidance. |
 | Settings | Per-model sampling/context settings, conversation system instruction, staged Apply/Cancel/Reset. | Validated advanced chat-template override; retain embedded templates by default. |
@@ -28,7 +28,7 @@ A RAM check is guidance, not a guarantee that a model can load. Unknown metadata
 
 ## Differentiators in build order
 
-1. **On-device RAG:** expand the existing Markdown/TXT keyword-retrieval baseline into PDF/markdown document chat with local embeddings and navigable, validated citations. This is the first major differentiator after stabilizing the core; the full pipeline is planned, while basic local retrieval is implemented.
+1. **On-device RAG:** expand PDF/Markdown/TXT chat retrieval with OCR, local embeddings and navigable, validated citations. This is the first major differentiator after stabilizing the core; text PDF extraction and chat-scoped keyword retrieval are implemented; OCR and semantic retrieval remain planned.
 2. **Curated model hub:** plain-language recommendations, per-device fit checks, and benchmarks tied to exact model/chip configurations. Existing phone-focused discovery is the starting point.
 3. **P2P sharing:** distribute model files over local WiFi without internet, using platform-native discovery/transport, chunk verification, and final verification against a previously trusted upstream digest.
 4. **LAN hosting:** one device explicitly hosts inference for other devices on the same WiFi through an OpenAI-compatible endpoint. This is an opt-in personal-cloud mode with a different privacy boundary.

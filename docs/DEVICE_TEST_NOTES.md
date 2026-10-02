@@ -37,7 +37,7 @@ The following release-gate checks require hardware and remain open:
 - [ ] Export/import text and supported image chats, cancel both dialogs and verify persistence after relaunch.
 - [ ] Confirm header export, Android drawer import, iOS history import and App Info at the end of Settings.
 - [ ] Verify built-in Qwen and vision templates after switching all completions to native messages.
-- [ ] Import/query Markdown/TXT offline; check source labels, query/import errors and cancellation before inference starts.
+- [ ] Import/query PDF/Markdown/TXT offline; check per-chat attachments, page/passage labels, query/import errors and cancellation. See [PDF_RAG.md](PDF_RAG.md).
 - [ ] Verify external image references are preserved without automatic fetching and unresolved tool calls remain unexecuted/exportable.
 
 ## iOS
@@ -47,3 +47,11 @@ The following release-gate checks require hardware and remain open:
 - [ ] If available, repeat download, inference, streaming, and lifecycle checks on device.
 
 Until the physical iPhone checks are recorded, iOS support is development-preview only. No device performance or store-readiness claim should be made from Simulator results.
+
+## PDF extraction and chat-scoped retrieval
+
+This change passed type checking, lint, 136 Jest tests across 22 suites, and production JavaScript bundling for Android and iOS.
+
+Shared JavaScript checks cover PDF page extraction orchestration (mocked native bridge), cancellation/session closure, copy/index cleanup, cache restore, legacy text indexing, page-aware chunking, chat attachment isolation and metadata persistence. These do not certify native extraction or device inference.
+
+Real PDF fixtures and Android parser instrumentation tests are included. A PDFKit parser smoke script runs on macOS; iOS app/bridge checks still require an iOS build/device. Both platform parser/device checks are pending because the implementation environment has no Android SDK/device or Xcode. Follow [PDF_RAG.md](PDF_RAG.md), including airplane-mode, cancellation, large-document and multi-column checks.

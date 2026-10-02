@@ -5,6 +5,9 @@ export type DocumentRecord = {
   contentHash: string;
   size: number;
   importedAt: number;
+  kind?: 'text' | 'pdf';
+  pageCount?: number;
+  emptyPages?: number;
 };
 
 export type DocumentChunk = {
@@ -13,11 +16,12 @@ export type DocumentChunk = {
   documentName: string;
   text: string;
   heading?: string;
+  page?: number;
   start: number;
   end: number;
 };
 
-export type RetrievedChunk = DocumentChunk & {score: number};
+export type RetrievedChunk = DocumentChunk & { score: number };
 
 const WORD_PATTERN = /[a-z0-9][a-z0-9'_-]*/gi;
 const DEFAULT_CHUNK_SIZE = 1200;
@@ -70,6 +74,19 @@ export function chunkMarkdown(
   return chunks;
 }
 
+export function chunkPdfPages(
+  document: DocumentRecord,
+  pages: { page: number; text: string }[],
+): DocumentChunk[] {
+  return pages.flatMap(page =>
+    chunkMarkdown(document, page.text).map(chunk => ({
+      ...chunk,
+      id: `${document.id}:page-${page.page}:${chunk.id.split(':').pop()}`,
+      page: page.page,
+    })),
+  );
+}
+
 export function retrieveChunks(
   query: string,
   chunks: DocumentChunk[],
@@ -87,7 +104,7 @@ export function retrieveChunks(
         (total, term) => total + Math.min(counts.get(term) || 0, 3),
         0,
       );
-      return {...chunk, score};
+      return { ...chunk, score };
     })
     .filter(chunk => chunk.score > 0)
     .sort((a, b) => b.score - a.score || a.start - b.start)
@@ -100,7 +117,11 @@ export function formatRetrievedContext(chunks: RetrievedChunk[]): string {
     .map(
       (chunk, index) =>
         `[Source ${index + 1}: ${chunk.documentName}${
-          chunk.heading ? ` · ${chunk.heading}` : ''
+          chunk.page
+            ? ` · page ${chunk.page}`
+            : chunk.heading
+            ? ` · ${chunk.heading}`
+            : ''
         }]\n${chunk.text}`,
     )
     .join('\n\n');

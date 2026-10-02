@@ -60,6 +60,7 @@ export function ScreenContent({ app }: { app: AppController }) {
           onCloseSettings={() => app.setChatSettingsVisible(false)}
           onSettings={() => app.setChatSettingsVisible(true)}
           onAttachImage={app.requestImageAttachment}
+          onDocuments={() => app.setDocumentsVisible(true)}
         />
       ) : (
         <SettingsScreen app={app} />
@@ -79,6 +80,16 @@ export function ScreenContent({ app }: { app: AppController }) {
           onPress={() => {
             app.setChatMenuVisible(false);
             app.exportChat();
+          }}
+        />
+        <Button
+          label="Chat documents"
+          icon="models"
+          colors={colors}
+          disabled={chat.sending}
+          onPress={() => {
+            app.setChatMenuVisible(false);
+            app.setDocumentsVisible(true);
           }}
         />
         <Text style={[styles.caption, { color: colors.muted }]}>
@@ -127,10 +138,17 @@ export function ScreenContent({ app }: { app: AppController }) {
       <Sheet
         visible={app.documentsVisible}
         onClose={() => app.setDocumentsVisible(false)}
-        title="Local documents"
+        title={app.route === 'chat' ? 'Chat documents' : 'Document library'}
         colors={colors}
       >
-        <DocumentLibraryView controller={app.documents} colors={colors} />
+        <DocumentLibraryView
+          controller={app.documents}
+          colors={colors}
+          selected={app.route === 'chat' ? chat.documentIds : undefined}
+          onToggle={app.route === 'chat' ? chat.toggleDocument : undefined}
+          disabled={chat.sending || Boolean(app.transfer)}
+          onPickerStateChange={models.setExternalUIActive}
+        />
       </Sheet>
     </View>
   );
@@ -282,8 +300,8 @@ function SettingsScreen({ app }: { app: AppController }) {
         ]}
       >
         <Text style={[styles.paragraph, { color: colors.muted }]}>
-          Add local Markdown or text documents. Retrieved passages are included
-          in chat without leaving this device.
+          Import PDFs, Markdown, or text files. Attach documents to each chat to
+          search them without leaving this device.
         </Text>
         <Button
           label="Manage local documents"

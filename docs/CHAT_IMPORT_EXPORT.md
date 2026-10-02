@@ -71,3 +71,7 @@ Tool calls/results remain structured and are never executed by import. Completed
 Export/import a text chat and an inline-image chat using Android document providers and iOS Files. Cancel both dialogs; test invalid JSON, full storage, relaunch and imported tool history. Verify native built-in Qwen formatting after the move to messages, vision/projector behavior, and no automatic external-image network request. Automated native mocks and JS bundles do not certify these hardware flows.
 
 No native dependency was added; the existing document-picker module provides both open and save dialogs. Install the previous native picker update first. A Metro reload is enough for this change when that module is already installed.
+
+## Local document attachments
+
+Chat-specific document selections are local metadata, outside `{model, messages}`. Export includes the generated answer but does not bundle PDF originals, extracted text, indexes or local document IDs. Imported chats start without document attachments; attach files from the local library before asking document questions. See [PDF_RAG.md](PDF_RAG.md).

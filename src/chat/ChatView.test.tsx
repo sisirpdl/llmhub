@@ -116,6 +116,9 @@ test('adds retrieved local sources to the model prompt', async () => {
     renderers.push(renderer);
   });
   await ReactTestRenderer.act(async () => {
+    chat.toggleDocument('document-notes');
+  });
+  await ReactTestRenderer.act(async () => {
     renderer!.root
       .findByProps({ accessibilityLabel: 'Message' })
       .props.onChangeText('When does the train leave?');
@@ -125,7 +128,9 @@ test('adds retrieved local sources to the model prompt', async () => {
       .findByProps({ accessibilityLabel: 'Send message' })
       .props.onPress();
   });
-  expect(retrieve).toHaveBeenCalledWith('When does the train leave?');
+  expect(retrieve).toHaveBeenCalledWith('When does the train leave?', [
+    'document-notes',
+  ]);
   expect(completion.mock.calls[0][0]).not.toHaveProperty('prompt');
   expect(completion.mock.calls[0][0].messages[0].content).toContain(
     '[Source 1: Notes.md]',
@@ -595,19 +600,17 @@ test('clears migration backups only after successfully committing cleared histor
 });
 
 test('retrieval remains separate from portable history and can run after importing a chat', async () => {
-  const retrieve = jest
-    .fn()
-    .mockResolvedValue([
-      {
-        id: 'chunk',
-        documentId: 'doc',
-        documentName: 'Notes.md',
-        text: 'The train leaves at noon.',
-        start: 0,
-        end: 28,
-        score: 1,
-      },
-    ]);
+  const retrieve = jest.fn().mockResolvedValue([
+    {
+      id: 'chunk',
+      documentId: 'doc',
+      documentName: 'Notes.md',
+      text: 'The train leaves at noon.',
+      start: 0,
+      end: 28,
+      score: 1,
+    },
+  ]);
   const completion = jest
     .fn()
     .mockResolvedValue({ text: 'At noon [Source 1].' });
@@ -631,6 +634,7 @@ test('retrieval remains separate from portable history and can run after importi
     });
   });
   await ReactTestRenderer.act(async () => {
+    chat.toggleDocument('document-notes');
     chat.setDraft('When does the train leave?');
   });
   await ReactTestRenderer.act(async () => {
@@ -674,6 +678,7 @@ test('stopping pending retrieval prevents inference and a second concurrent send
     );
   });
   await ReactTestRenderer.act(async () => {
+    chat.toggleDocument('document-notes');
     chat.setDraft('Search notes');
   });
   let pending: Promise<void>;
@@ -690,4 +695,76 @@ test('stopping pending retrieval prevents inference and a second concurrent send
   expect(completion).not.toHaveBeenCalled();
   expect(chat.sending).toBe(false);
   expect(chat.draft).toBe('Search notes');
+});
+
+test('attachments persist per chat, new chats stay isolated, and exports exclude local IDs', async () => {
+  const retrieve = jest.fn().mockResolvedValue([]);
+  const completion = jest.fn().mockResolvedValue({ text: 'Reply' });
+  await ReactTestRenderer.act(async () => {
+    renderers.push(
+      ReactTestRenderer.create(
+        <Harness
+          context={{ completion } as unknown as LlamaContext}
+          retrieve={retrieve}
+        />,
+      ),
+    );
+  });
+  const firstId = chat.currentId;
+  await ReactTestRenderer.act(async () => {
+    chat.toggleDocument('document-biology');
+  });
+  expect(chat.documentIds).toEqual(['document-biology']);
+  expect(chat.exportDocument()).not.toHaveProperty('documentIds');
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Sunlight');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(retrieve).toHaveBeenLastCalledWith('Sunlight', ['document-biology']);
+  await ReactTestRenderer.act(async () => {
+    chat.newConversation();
+  });
+  expect(chat.currentId).not.toBe(firstId);
+  expect(chat.documentIds).toEqual([]);
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Sunlight again');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(retrieve).toHaveBeenCalledTimes(1);
+  await ReactTestRenderer.act(async () => {
+    chat.selectConversation(firstId);
+  });
+  expect(chat.documentIds).toEqual(['document-biology']);
+  await ReactTestRenderer.act(async () => {
+    chat.toggleDocument('document-biology');
+  });
+  expect(chat.documentIds).toEqual([]);
+});
+
+test('restores local document selections without changing portable messages', async () => {
+  const { fresh, HISTORY_KEY, restoreHistory } = require('./conversationStore');
+  const saved = { ...fresh('qwen'), documentIds: ['document-biology'] };
+  const value = JSON.stringify({ currentId: saved.id, conversations: [saved] });
+  expect(restoreHistory(value).conversations[0].documentIds).toEqual([
+    'document-biology',
+  ]);
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(async key =>
+    key === HISTORY_KEY ? value : null,
+  );
+  try {
+    await ReactTestRenderer.act(async () => {
+      renderers.push(ReactTestRenderer.create(<Harness context={null} />));
+    });
+    expect(chat.documentIds).toEqual(['document-biology']);
+    expect(chat.exportDocument()).toEqual({
+      model: saved.model,
+      messages: saved.messages,
+    });
+  } finally {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  }
 });

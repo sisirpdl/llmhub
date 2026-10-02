@@ -18,9 +18,9 @@ Dark appearance is the first-run default; Dark, Light and Follow system are pers
 
 ## Chat actions and settings
 
-Android's header ⋮ opens Export chat; Import chat is in the main drawer. iOS uses a native export action sheet and an import entry in its Conversations sheet. Export/import uses one portable JSON chat document, with supported images embedded for transfer. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md).
+Android's header ⋮ opens Export chat and Chat documents; Import chat is in the main drawer. iOS uses a native action sheet with export and Chat documents and an import entry in its Conversations sheet. Export/import uses one portable JSON chat document, with supported images embedded for transfer. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md).
 
-The composer model chip and adjacent settings control remain. App Info and engine diagnostics are the final Settings section rather than a separate destination/tab. Settings also includes Manage local documents for Markdown/TXT keyword retrieval. The latest response's source names are displayed; a navigable source viewer and verified citations are planned.
+The composer model chip and adjacent settings control remain. App Info and engine diagnostics are the final Settings section rather than a separate destination/tab. Settings includes the shared PDF/Markdown/TXT library. The chat's document control selects attachments for that conversation. Latest-response passage labels include PDF page numbers and open the extracted passage; full PDF navigation and verified citations remain planned.
 
 The current shells use custom React Native navigation. Native-stack migration, iOS collapsing large titles/swipe-back and Android new-chat FAB refinement remain planned. Native inference, persistence and validation stay shared; platform layouts/navigation use separate files.
 
@@ -52,7 +52,7 @@ Physical-device checks still required:
 - Open Models or Settings during generation, then return to the same chat; stopping should preserve partial output.
 - Start a new chat, reopen the old chat from history, restart the app and verify both survive.
 - Export/import text and image chats with Android document providers and iOS Files; cancellation must retain the current chat.
-- Import a Markdown/TXT document, query it offline, check source labels and cancel during retrieval.
+- Import PDF/Markdown/TXT documents, attach them to one chat, verify isolation from another chat, inspect page labels and cancel during import/retrieval. See [PDF_RAG.md](PDF_RAG.md).
 - Check the header export action, import navigation, composer settings and App Info at the end of Settings.
 - Background while loading, generating and idle; return and reload.
 - Verify the vision preview separately on a compatible physical device.

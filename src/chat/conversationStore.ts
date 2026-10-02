@@ -17,6 +17,7 @@ export type Conversation = ChatDocument & {
   title: string;
   updatedAt: number;
   customTitle?: boolean;
+  documentIds?: string[];
   messageMeta: MessageMeta[];
   switches: SwitchEvent[];
 };
@@ -32,11 +33,13 @@ export const fresh = (model: string): Conversation => ({
   messages: [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }],
   messageMeta: [{ id: newId() }],
   switches: [],
+  documentIds: [],
 });
 export function importedConversation(doc: ChatDocument): Conversation {
   return {
     ...fresh(doc.model),
     ...doc,
+    documentIds: [],
     title:
       messageText(
         doc.messages.find(m => m.role === 'user') || {
@@ -93,6 +96,11 @@ export function restoreHistory(text: string): {
       typeof c.title !== 'string' ||
       !Number.isFinite(c.updatedAt) ||
       (c.customTitle !== undefined && typeof c.customTitle !== 'boolean') ||
+      (c.documentIds !== undefined &&
+        (!Array.isArray(c.documentIds) ||
+          !c.documentIds.every(
+            id => typeof id === 'string' && /^document-[a-z0-9-]+$/i.test(id),
+          ))) ||
       !Array.isArray(c.messageMeta) ||
       c.messageMeta.length !== c.messages.length ||
       !c.messageMeta.every((m: MessageMeta) => m && typeof m.id === 'string') ||
