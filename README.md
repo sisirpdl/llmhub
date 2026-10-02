@@ -2,7 +2,7 @@
 
 A private, offline-first chat app that runs GGUF language models directly on iOS and Android devices.
 
-Download a built-in model, browse GGUF repositories on Hugging Face, or import a local file or remote download URL. Chat offline with streamed responses and shared model lifecycle controls. Setup and device checks for imports are in [docs/MODEL_IMPORTS.md](docs/MODEL_IMPORTS.md). The delivery plan is in [docs/USER_STORIES.md](docs/USER_STORIES.md).
+Download a built-in model, browse GGUF repositories on Hugging Face, or import a local file or remote download URL. Chat offline with streamed responses and shared model lifecycle controls. Current capabilities and future direction are in [docs/PRODUCT_BRIEF.md](docs/PRODUCT_BRIEF.md); model import setup is in [docs/MODEL_IMPORTS.md](docs/MODEL_IMPORTS.md), and hardware validation is in [docs/DEVICE_TEST_NOTES.md](docs/DEVICE_TEST_NOTES.md).
 
 ## Native acceleration assets
 

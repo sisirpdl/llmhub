@@ -11,6 +11,7 @@ import { useColorScheme } from 'react-native';
 import { useModelController, isVision } from './useModelController';
 import { useChatController } from '../chat/useChatController';
 import { darkColors, lightColors, type Appearance } from '../ui/theme';
+import { useDocumentIndex } from '../documents/useDocumentIndex';
 export type Route = 'chat' | 'models' | 'settings' | 'info';
 export function useAppController() {
   const systemDark = useColorScheme() === 'dark';
@@ -22,7 +23,9 @@ export function useAppController() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [chatSettingsVisible, setChatSettingsVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [documentsVisible, setDocumentsVisible] = useState(false);
   const settings = useModelSettings();
+  const documents = useDocumentIndex();
   const [renameVisible, setRenameVisible] = useState(false);
   const [visionSetupVisible, setVisionSetupVisible] = useState(false);
   const models = useModelController({
@@ -40,6 +43,7 @@ export function useAppController() {
     settings: settings.forModel(models.model),
     contextLength: models.loadedContextLength,
     onImagePickerStateChange: models.setExternalUIActive,
+    retrieve: documents.retrieve,
   });
   useEffect(() => {
     AsyncStorage.getItem('@llmhub/onboarding-complete')
@@ -144,6 +148,9 @@ export function useAppController() {
     setChatSettingsVisible,
     historyVisible,
     setHistoryVisible,
+    documentsVisible,
+    setDocumentsVisible,
+    documents,
   };
 }
 export type AppController = ReturnType<typeof useAppController>;
