@@ -52,7 +52,7 @@ export function ScreenContent({ app }: { app: AppController }) {
         <ChatView
           chat={chat}
           colors={colors}
-          active={Boolean(models.context)}
+          active={Boolean(models.context) && !app.transfer}
           vision={isVision(models.model)}
           onModels={() => app.setRoute('models')}
           onPicker={() => app.setPickerVisible(true)}
@@ -61,11 +61,30 @@ export function ScreenContent({ app }: { app: AppController }) {
           onSettings={() => app.setChatSettingsVisible(true)}
           onAttachImage={app.requestImageAttachment}
         />
-      ) : app.route === 'settings' ? (
-        <SettingsScreen app={app} />
       ) : (
-        <InfoScreen app={app} />
+        <SettingsScreen app={app} />
       )}
+      <Sheet
+        visible={app.chatMenuVisible}
+        onClose={() => app.setChatMenuVisible(false)}
+        title="Chat actions"
+        colors={colors}
+        scroll={false}
+      >
+        <Button
+          label="Export chat"
+          icon="external"
+          colors={colors}
+          disabled={chat.sending || Boolean(app.transfer)}
+          onPress={() => {
+            app.setChatMenuVisible(false);
+            app.exportChat();
+          }}
+        />
+        <Text style={[styles.caption, { color: colors.muted }]}>
+          Save one JSON file with this conversation and its images.
+        </Text>
+      </Sheet>
       <VisionSetupSheet app={app} />
       <ModelDiscovery
         visible={app.discoveryVisible}
@@ -126,6 +145,15 @@ export function History({
   const { colors, chat } = app;
   return (
     <View style={styles.history}>
+      {Platform.OS === 'ios' ? (
+        <Button
+          label="Import chat"
+          icon="download"
+          colors={colors}
+          disabled={chat.sending || !chat.loaded || Boolean(app.transfer)}
+          onPress={app.importChat}
+        />
+      ) : null}
       <Pressable
         accessibilityRole="button"
         disabled={chat.sending}
@@ -288,10 +316,11 @@ function SettingsScreen({ app }: { app: AppController }) {
         you return. Vision support is a preview and requires a compatible
         projector.
       </Text>
+      <InfoSection app={app} />
     </ScrollView>
   );
 }
-function InfoScreen({ app }: { app: AppController }) {
+function InfoSection({ app }: { app: AppController }) {
   const { colors, models } = app;
   const constants = Platform.constants as Record<string, unknown>;
   const rows = [
@@ -320,7 +349,8 @@ function InfoScreen({ app }: { app: AppController }) {
     ],
   ];
   return (
-    <ScrollView contentContainerStyle={styles.page}>
+    <View>
+      <Text style={[styles.section, { color: colors.accent }]}>App Info</Text>
       <View style={styles.brand}>
         <Icon name="chat" color={colors.accent} size={44} />
         <Text style={[styles.brandName, { color: colors.text }]}>LLMHub</Text>
@@ -356,7 +386,7 @@ function InfoScreen({ app }: { app: AppController }) {
         Physical-device testing is required to validate native inference. iOS is
         preview-only until verified on an iPhone.
       </Text>
-    </ScrollView>
+    </View>
   );
 }
 export function Onboarding({

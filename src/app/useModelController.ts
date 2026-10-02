@@ -335,13 +335,7 @@ export function useModelController(options?: {
       setLoadDuration(Date.now() - start);
       const smokeStart = Date.now();
       const result = await next.completion({
-        ...(item.promptTemplateId === 'native'
-          ? {
-              messages: [
-                { role: 'user' as const, content: 'Reply with exactly: READY' },
-              ],
-            }
-          : { prompt: 'Reply with exactly: READY' }),
+        messages: [{ role: 'user', content: 'Reply with exactly: READY' }],
         n_predict: 8,
         temperature: 0,
       });

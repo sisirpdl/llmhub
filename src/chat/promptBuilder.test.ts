@@ -1,40 +1,116 @@
-import {buildPrompt, type PromptMessage} from './promptBuilder'
+import { prepareMessages } from './promptBuilder';
+import type { ChatMessage } from './chatDocument';
+const prepare = (messages: ChatMessage[], vision = false, context = 2048) =>
+  prepareMessages(messages, context, 256, vision);
+test('keeps native message objects and system instructions intact', () => {
+  const messages: ChatMessage[] = [
+    { role: 'system', content: 'Be concise.' },
+    { role: 'user', content: 'Hi <tags>' },
+    { role: 'assistant', content: 'Hello' },
+  ];
+  expect(prepare(messages).messages).toEqual(messages);
+  expect(prepare(messages).messages[1]).toBe(messages[1]);
+});
+test('keeps multiple system/developer messages instead of replacing them', () => {
+  const messages: ChatMessage[] = [
+    { role: 'system', content: 'A' },
+    { role: 'developer', content: 'B' },
+    { role: 'user', content: 'C' },
+  ];
+  expect(prepare(messages).messages).toEqual(messages);
+});
+test('omits complete older turns without orphaning tool results', () => {
+  const messages: ChatMessage[] = [
+    { role: 'system', content: 'Rules' },
+    { role: 'user', content: 'old '.repeat(1000) },
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'call',
+          type: 'function',
+          function: { name: 'lookup', arguments: '{}' },
+        },
+      ],
+    },
+    { role: 'tool', content: 'Result', tool_call_id: 'call' },
+    { role: 'assistant', content: 'Old answer' },
+    { role: 'user', content: 'Latest' },
+  ];
+  const result = prepare(messages, false, 512);
+  expect(result.messages).toEqual([messages[0], messages[5]]);
+  expect(result.omittedMessageCount).toBe(4);
+});
+test('preserves a full newest turn and reports oversize instead of silently truncating', () => {
+  const messages: ChatMessage[] = [
+    { role: 'user', content: 'large '.repeat(1000) },
+  ];
+  expect(prepare(messages, false, 512).messages).toEqual(messages);
+  expect(prepare(messages, false, 512).oversized).toBe(true);
+});
+test('vision uses typed parts natively; text capability filtering keeps typed text', () => {
+  const messages: ChatMessage[] = [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Image?' },
+        { type: 'image_url', image_url: { url: 'file:///private/image.jpg' } },
+      ],
+    },
+  ];
+  expect(prepare(messages, true).messages[0]).toBe(messages[0]);
+  expect(prepare(messages).messages[0].content).toEqual([
+    { type: 'text', text: 'Image?' },
+  ]);
+  expect(messages[0].content).toHaveLength(2);
+});
+test('does not fetch remote media or pretend unsupported media is text', () => {
+  expect(() =>
+    prepare(
+      [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: 'https://example.com/private.png' },
+            },
+          ],
+        },
+      ],
+      true,
+    ),
+  ).toThrow('will not fetch');
+  expect(() =>
+    prepare([
+      {
+        role: 'user',
+        content: [
+          { type: 'input_audio', input_audio: { data: 'YWJj', format: 'wav' } },
+        ],
+      },
+    ]),
+  ).toThrow('does not support');
+});
 
-const build = (messages: PromptMessage[], contextLength = 2048) => buildPrompt(messages, 'qwen2', contextLength)
-
-test('builds an empty Qwen conversation with a default system prompt', () => {
-  expect(build([]).prompt).toBe('<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>assistant\n')
-})
-
-test('preserves an explicit system prompt', () => {
-  expect(build([{role: 'system', content: 'Be concise.'}]).prompt).toContain('<|im_start|>system\nBe concise.<|im_end|>')
-})
-
-test('keeps alternating turns in order', () => {
-  const result = build([{role: 'user', content: 'Hi'}, {role: 'assistant', content: 'Hello'}, {role: 'user', content: 'How are you?'}])
-  expect(result.prompt.indexOf('user\nHi')).toBeLessThan(result.prompt.indexOf('assistant\nHello'))
-  expect(result.prompt.indexOf('assistant\nHello')).toBeLessThan(result.prompt.indexOf('user\nHow are you?'))
-})
-
-test('retains a prior assistant response', () => {
-  expect(build([{role: 'user', content: 'One'}, {role: 'assistant', content: 'Two'}]).prompt).toContain('<|im_start|>assistant\nTwo<|im_end|>')
-})
-
-test('preserves special characters without corrupting content', () => {
-  const content = 'Use <tags> & "quotes" exactly.'
-  expect(build([{role: 'user', content}]).prompt).toContain(content)
-})
-
-test('omits only old complete turns when the context budget is exceeded', () => {
-  const result = build([{role: 'user', content: 'old '.repeat(1000)}, {role: 'assistant', content: 'old reply'}, {role: 'user', content: 'latest'}], 512)
-  expect(result.omittedMessageCount).toBe(1)
-  expect(result.prompt).toContain('latest')
-  expect(result.prompt).toContain('old reply')
-})
-
-test('keeps an oversized newest turn represented instead of dropping it silently', () => {
-  const result = build([{role: 'user', content: 'prefix '.repeat(2000)}], 512)
-  expect(result.truncatedMessage).toBe(true)
-  expect(result.omittedMessageCount).toBe(0)
-  expect(result.prompt).toContain('<|im_start|>user')
-})
+test('preserves instruction placement and complete tool history in native order', () => {
+  const messages: ChatMessage[] = [
+    { role: 'user', content: 'Lookup' },
+    { role: 'system', content: 'Updated instruction' },
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'a',
+          type: 'function',
+          function: { name: 'lookup', arguments: '{}' },
+        },
+      ],
+    },
+    { role: 'tool', tool_call_id: 'a', content: 'Found it' },
+    { role: 'assistant', content: 'Answer' },
+  ];
+  expect(prepare(messages).messages).toEqual(messages);
+});

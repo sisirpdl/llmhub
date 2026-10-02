@@ -9,7 +9,6 @@ const tabs: { route: Route; label: string; icon: IconName }[] = [
   { route: 'chat', label: 'Chat', icon: 'chat' },
   { route: 'models', label: 'Models', icon: 'models' },
   { route: 'settings', label: 'Settings', icon: 'settings' },
-  { route: 'info', label: 'App Info', icon: 'info' },
 ];
 export default function IOSAppShell({ app }: { app: AppController }) {
   const insets = useSafeAreaInsets();
@@ -94,11 +93,14 @@ export default function IOSAppShell({ app }: { app: AppController }) {
               onPress={app.chat.newConversation}
             />
             <IconButton
-              name="sliders"
-              label="Open chat settings"
+              name="more"
+              label="Open chat menu"
               colors={colors}
               color={colors.accent}
-              onPress={() => app.setChatSettingsVisible(true)}
+              disabled={
+                app.chat.sending || !app.chat.loaded || Boolean(app.transfer)
+              }
+              onPress={app.openChatMenu}
             />
           </>
         ) : (
