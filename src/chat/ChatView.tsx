@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { memo, useRef, useState } from 'react';
 import { messageText, imageUrls } from './chatDocument';
 import {
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -25,6 +26,7 @@ export function ChatView({
   onPicker,
   onSettings,
   onAttachImage,
+  onDocuments,
 }: {
   chat: ChatController;
   colors: Colors;
@@ -36,6 +38,7 @@ export function ChatView({
   onCloseSettings?: () => void;
   onSettings?: () => void;
   onAttachImage?: () => void;
+  onDocuments?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
@@ -170,13 +173,43 @@ export function ChatView({
           Older turns were omitted to fit the model’s context window.
         </Text>
       ) : null}
+      {onDocuments ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Chat documents"
+          disabled={chat.sending || !chat.loaded}
+          onPress={onDocuments}
+        >
+          <Text style={[styles.notice, { color: colors.accent }]}>
+            Chat documents · {chat.documentIds.length} attached
+          </Text>
+        </Pressable>
+      ) : null}
       {chat.retrievedSources.length ? (
-        <Text style={[styles.notice, { color: colors.muted }]}>
-          Sources used:{' '}
-          {chat.retrievedSources
-            .map((source, index) => `[${index + 1}] ${source.documentName}`)
-            .join(' · ')}
-        </Text>
+        <View>
+          <Text style={[styles.notice, { color: colors.muted }]}>
+            Reference passages:
+          </Text>
+          {chat.retrievedSources.map((source, index) => (
+            <Pressable
+              key={source.id}
+              accessibilityRole="button"
+              onPress={() =>
+                Alert.alert(
+                  `${source.documentName}${
+                    source.page ? ` · page ${source.page}` : ''
+                  }`,
+                  source.text,
+                )
+              }
+            >
+              <Text style={[styles.notice, { color: colors.accent }]}>
+                [{index + 1}] {source.documentName}
+                {source.page ? ` · page ${source.page}` : ''} · View passage
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       ) : null}
       <Text
         accessibilityLiveRegion="polite"

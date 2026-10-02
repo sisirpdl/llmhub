@@ -260,7 +260,10 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
       .props.onPress();
   });
   expect(sheet).toHaveBeenCalledWith(
-    { options: ['Cancel', 'Export chat'], cancelButtonIndex: 0 },
+    {
+      options: ['Cancel', 'Export chat', 'Chat documents'],
+      cancelButtonIndex: 0,
+    },
     expect.any(Function),
   );
   await Renderer.act(async () => {

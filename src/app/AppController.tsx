@@ -161,9 +161,13 @@ export function useAppController() {
     if (chat.sending || !chat.loaded || transferBusy.current) return;
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Export chat'], cancelButtonIndex: 0 },
+        {
+          options: ['Cancel', 'Export chat', 'Chat documents'],
+          cancelButtonIndex: 0,
+        },
         index => {
           if (index === 1) transferChat('export');
+          if (index === 2) setDocumentsVisible(true);
         },
       );
     } else setChatMenuVisible(true);

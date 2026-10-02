@@ -61,7 +61,10 @@ export function useChatController({
   settings?: ModelSettings;
   contextLength?: number | null;
   onImagePickerStateChange?: (active: boolean) => void;
-  retrieve?: (query: string) => Promise<RetrievedChunk[]>;
+  retrieve?: (
+    query: string,
+    documentIds: string[],
+  ) => Promise<RetrievedChunk[]>;
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentId, setCurrentId] = useState('');
@@ -89,7 +92,7 @@ export function useChatController({
   const initialModel = useRef(model.id);
   const lastContextModel = useRef<string | null>(null);
   const history = conversations
-    .filter(hasTurns)
+    .filter(c => hasTurns(c) || c.documentIds?.length)
     .sort((a, b) => b.updatedAt - a.updatedAt);
   const conversation = conversations.find(c => c.id === currentId);
   const messages = conversation?.messages || [];
@@ -267,7 +270,10 @@ export function useChatController({
     setSending(true);
     setRetrievedSources([]);
     try {
-      const sources = retrieve ? await retrieve(content) : [];
+      const sources =
+        retrieve && conversation?.documentIds?.length
+          ? await retrieve(content, conversation?.documentIds || [])
+          : [];
       if (interrupted.current) {
         busy.current = false;
         setSending(false);
@@ -457,13 +463,20 @@ export function useChatController({
   }
   function newConversation() {
     if (busy.current || !loaded) return;
-    if (conversation && !hasTurns(conversation) && !conversation.customTitle) {
+    if (
+      conversation &&
+      !hasTurns(conversation) &&
+      !conversation.customTitle &&
+      !conversation.documentIds?.length
+    ) {
       clearDraft();
       return;
     }
     const next = fresh(model.id);
     setConversations(current => [
-      ...current.filter(c => hasTurns(c) || c.customTitle),
+      ...current.filter(
+        c => hasTurns(c) || c.customTitle || c.documentIds?.length,
+      ),
       next,
     ]);
     setCurrentId(next.id);
@@ -636,6 +649,23 @@ export function useChatController({
       JSON.stringify(portableDocument(conversation)),
     ) as ChatDocument;
   }
+  function toggleDocument(id: string) {
+    if (busy.current || !loaded || !/^document-[a-z0-9-]+$/i.test(id)) return;
+    setConversations(current =>
+      current.map(c => {
+        if (c.id !== currentId) return c;
+        const ids = c.documentIds || [];
+        return {
+          ...c,
+          documentIds: ids.includes(id)
+            ? ids.filter(value => value !== id)
+            : [...ids, id],
+          updatedAt: Date.now(),
+        };
+      }),
+    );
+    setRetrievedSources([]);
+  }
   return {
     title: conversation?.title || 'New chat',
     systemPrompt,
@@ -657,6 +687,8 @@ export function useChatController({
     error,
     omittedNotice,
     retrievedSources,
+    documentIds: conversation?.documentIds || [],
+    toggleDocument,
     imageUri,
     setImageUri,
     sendMessage,
