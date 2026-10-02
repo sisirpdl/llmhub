@@ -36,6 +36,8 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo to ask your on-device vision model about it.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose an image to ask your compatible local vision model about it.</string>
 	<key>UILaunchStoryboardName</key>

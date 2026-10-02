@@ -173,18 +173,6 @@ export function ChatView({
           Older turns were omitted to fit the model’s context window.
         </Text>
       ) : null}
-      {onDocuments ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Chat documents"
-          disabled={chat.sending || !chat.loaded}
-          onPress={onDocuments}
-        >
-          <Text style={[styles.notice, { color: colors.accent }]}>
-            Chat documents · {chat.documentIds.length} attached
-          </Text>
-        </Pressable>
-      ) : null}
       {chat.retrievedSources.length ? (
         <View>
           <Text style={[styles.notice, { color: colors.muted }]}>
@@ -211,16 +199,39 @@ export function ChatView({
           ))}
         </View>
       ) : null}
-      <Text
-        accessibilityLiveRegion="polite"
-        style={[styles.status, { color: colors.muted }]}
-      >
-        {chat.sending
-          ? 'Generating on device…'
-          : active
-          ? 'On device · No cloud'
-          : 'No model loaded'}
-      </Text>
+      <View style={styles.statusRow}>
+        {onDocuments ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ask your docs"
+            accessibilityState={{ disabled: chat.sending || !chat.loaded }}
+            disabled={chat.sending || !chat.loaded}
+            onPress={onDocuments}
+            style={styles.docsControl}
+          >
+            <Icon
+              name={chat.documentIds.length ? 'connected' : 'disconnected'}
+              size={16}
+              color={chat.documentIds.length ? colors.green : colors.muted}
+            />
+            <Text
+              style={{
+                color: chat.documentIds.length ? colors.green : colors.muted,
+              }}
+            >
+              Ask your docs · {chat.documentIds.length} connected
+            </Text>
+          </Pressable>
+        ) : null}
+        {chat.sending || !active ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.status, { color: colors.muted }]}
+          >
+            {chat.sending ? 'Generating…' : 'No model loaded'}
+          </Text>
+        ) : null}
+      </View>
       <View
         style={[
           styles.composer,
@@ -255,29 +266,20 @@ export function ChatView({
         <View style={styles.composerTools}>
           {vision || onAttachImage ? (
             <IconButton
-              name="plus"
+              name="image"
               label="Attach image"
               colors={colors}
               disabled={chat.sending || (!onAttachImage && !active)}
-              onPress={onAttachImage || chat.attachImage}
+              onPress={onAttachImage || (() => chat.attachImage('gallery'))}
             />
           ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Choose chat model"
+          <IconButton
+            name="swap"
+            label="Choose chat model"
+            colors={colors}
             disabled={chat.sending}
             onPress={onPicker}
-            style={[styles.modelPicker, { backgroundColor: colors.elevated }]}
-          >
-            <Icon name="models" size={16} color={colors.muted} />
-            <Text style={[styles.caption, { color: colors.muted }]}>
-              {chat.modelName
-                ? cleanedModelName(chat.modelName).slice(0, 5) +
-                  (cleanedModelName(chat.modelName).length > 5 ? '…' : '')
-                : 'Model'}
-            </Text>
-            <Icon name="down" size={16} color={colors.muted} />
-          </Pressable>
+          />
           <IconButton
             name="sliders"
             label="Open model settings"
@@ -380,13 +382,6 @@ const MessageBubble = memo(function MessageBubbleContent({
   );
 });
 
-export const cleanedModelName = (value: string) =>
-  value
-    .replace(/\.gguf$/i, '')
-    .split('/')
-    .pop()!
-    .replace(/[-_]/g, ' ')
-    .trim();
 const styles = StyleSheet.create({
   divider: { alignItems: 'center', paddingVertical: 8 },
   messageImage: { width: 220, height: 180, borderRadius: 12, marginBottom: 10 },
@@ -457,14 +452,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   composerTools: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  modelPicker: {
-    minHeight: 44,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    borderRadius: 22,
-  },
   spacer: { flex: 1 },
   send: {
     width: 46,
@@ -474,7 +461,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   disabled: { opacity: 0.5 },
-  status: { fontSize: 11, textAlign: 'center', paddingVertical: 8 },
+  status: { fontSize: 11, flexShrink: 1 },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    minHeight: 44,
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  docsControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 44,
+  },
   notice: {
     fontSize: 13,
     lineHeight: 19,

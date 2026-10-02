@@ -8,6 +8,11 @@ const paths = {
   sliders: 'M6 3v5m0 4v9M12 3v10m0 4v4M18 3v2m0 4v12M3 8h6M9 17h6M15 5h6',
   info: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM12 11v6M12 7h.01',
   plus: 'M12 5v14M5 12h14',
+  swap: 'M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4',
+  connected:
+    'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
+  disconnected:
+    'M8 10l-4 4a5 5 0 0 0 7 7l2-2M16 14l4-4a5 5 0 0 0-7-7l-2 2M3 3l18 18',
   close: 'M6 6l12 12M18 6 6 18',
   down: 'm6 9 6 6 6-6',
   up: 'm6 15 6-6 6 6',

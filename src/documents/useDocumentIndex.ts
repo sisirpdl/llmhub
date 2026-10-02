@@ -136,7 +136,7 @@ export function useDocumentIndex() {
         documentIds.some(id => !documents.some(document => document.id === id))
       )
         throw new Error(
-          'An attached document is missing. Open Chat documents and detach it.',
+          'An attached document is missing. Open Ask your docs and detach it.',
         );
       return retrieveChunks(
         query,

@@ -75,8 +75,8 @@ export function VisionSetupSheet({ app }: { app: AppController }) {
       )}
       {ready.length ? (
         <Text style={{ color: colors.muted }}>
-          After loading, tap + again to choose your image. Your conversation
-          stays here.
+          After loading, tap the gallery icon again to choose Camera or Gallery.
+          Your conversation stays here.
         </Text>
       ) : null}
     </Sheet>
