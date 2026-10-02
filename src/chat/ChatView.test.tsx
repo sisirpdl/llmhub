@@ -180,39 +180,50 @@ test('migrates the existing saved conversation without losing its turns', async 
   expect(chat.messageItems).toEqual(saved);
   expect(chat.history[0].title).toBe('Existing conversation');
 });
-test('prevents concurrent sends and keeps a stopped partial response', async () => {
-  let finish: (value: { text: string }) => void = () => {};
-  const completion = jest.fn((_params, onToken) => {
-    onToken({ token: 'Partial' });
-    return new Promise<{ text: string }>(resolve => {
-      finish = resolve;
+test.each(['promise', 'undefined', 'throw', 'reject'])(
+  'prevents concurrent sends and keeps a partial response when stop returns %s',
+  async stopBehavior => {
+    let finish: (value: { text: string }) => void = () => {};
+    const completion = jest.fn((_params, onToken) => {
+      onToken({ token: 'Partial' });
+      return new Promise<{ text: string }>(resolve => {
+        finish = resolve;
+      });
     });
-  });
-  const context = {
-    completion,
-    stopCompletion: jest.fn(async () => {
+    const context = {
+      completion,
+      stopCompletion: jest.fn(() => {
+        if (stopBehavior === 'throw') throw new Error('Stop failed');
+        if (stopBehavior === 'reject')
+          return Promise.reject(new Error('Stop failed'));
+        finish({ text: 'Partial' });
+        return stopBehavior === 'promise' ? Promise.resolve() : undefined;
+      }),
+    } as unknown as LlamaContext;
+    await ReactTestRenderer.act(async () => {
+      renderers.push(ReactTestRenderer.create(<Harness context={context} />));
+    });
+    await ReactTestRenderer.act(async () => {
+      chat.setDraft('Long reply');
+    });
+    let pending: Promise<void>;
+    await ReactTestRenderer.act(async () => {
+      pending = chat.sendMessage();
+    });
+    await ReactTestRenderer.act(async () => {
+      await chat.sendMessage();
+      await chat.stopGeneration();
       finish({ text: 'Partial' });
-    }),
-  } as unknown as LlamaContext;
-  await ReactTestRenderer.act(async () => {
-    renderers.push(ReactTestRenderer.create(<Harness context={context} />));
-  });
-  await ReactTestRenderer.act(async () => {
-    chat.setDraft('Long reply');
-  });
-  let pending: Promise<void>;
-  await ReactTestRenderer.act(async () => {
-    pending = chat.sendMessage();
-  });
-  await ReactTestRenderer.act(async () => {
-    await chat.sendMessage();
-    await chat.stopGeneration();
-    await pending;
-  });
-  expect(completion).toHaveBeenCalledTimes(1);
-  expect(chat.messageItems[1].content).toBe('Partial');
-  expect(chat.sending).toBe(false);
-});
+      await pending;
+    });
+    expect(completion).toHaveBeenCalledTimes(1);
+    expect(chat.messageItems[1].content).toBe('Partial');
+    expect(chat.sending).toBe(false);
+    expect(chat.error).toBe(
+      'Generation stopped. The partial response was kept.',
+    );
+  },
+);
 
 test('sends structured messages to imported model chat templates', async () => {
   const completion = jest.fn().mockResolvedValue({ text: 'Native response' });

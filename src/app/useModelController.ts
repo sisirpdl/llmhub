@@ -159,7 +159,11 @@ export function useModelController(options?: {
     setContext(null);
     setLoadedContextLength(null);
     const release = async () => {
-      await previous.context.stopCompletion().catch(() => {});
+      try {
+        await previous.context.stopCompletion();
+      } catch {
+        // Continue releasing the context if stopping fails.
+      }
       await previous.context.release().catch(() => {});
       setState(previous.id, 'ready');
     };

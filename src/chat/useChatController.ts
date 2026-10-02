@@ -438,7 +438,11 @@ export function useChatController({
   async function stopGeneration() {
     if (!context || !busy.current) return;
     interrupted.current = true;
-    await context.stopCompletion().catch(() => {});
+    try {
+      await context.stopCompletion();
+    } catch {
+      // Keep the partial response if stopping fails.
+    }
     if (frame.current) cancelAnimationFrame(frame.current);
     flush();
     setError('Generation stopped. The partial response was kept.');

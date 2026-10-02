@@ -99,20 +99,30 @@ test('uses a load-failed state so retry does not redownload a valid GGUF', async
   expect(models.states[CATALOG[0].id]).toBe('load-failed');
   expect(models.errors[CATALOG[0].id]).toBe('Not enough memory');
 });
-test('stops and releases an active context on background', async () => {
-  const active = context();
-  (initLlama as jest.Mock).mockResolvedValueOnce(active);
-  await Renderer.act(async () => {
-    await models.load(CATALOG[0]);
-  });
-  await Renderer.act(async () => {
-    lifecycle('background');
-  });
-  expect(active.stopCompletion).toHaveBeenCalledTimes(1);
-  expect(active.release).toHaveBeenCalledTimes(1);
-  expect(models.context).toBeNull();
-  expect(models.states[CATALOG[0].id]).toBe('ready');
-});
+test.each(['promise', 'undefined', 'throw', 'reject'])(
+  'stops and releases an active context on background when stop returns %s',
+  async stopBehavior => {
+    const active = context();
+    active.stopCompletion.mockImplementation(() => {
+      if (stopBehavior === 'throw') throw new Error('Stop failed');
+      if (stopBehavior === 'reject')
+        return Promise.reject(new Error('Stop failed'));
+      if (stopBehavior === 'undefined') return undefined;
+      return Promise.resolve();
+    });
+    (initLlama as jest.Mock).mockResolvedValueOnce(active);
+    await Renderer.act(async () => {
+      await models.load(CATALOG[0]);
+    });
+    await Renderer.act(async () => {
+      lifecycle('background');
+    });
+    expect(active.stopCompletion).toHaveBeenCalledTimes(1);
+    expect(active.release).toHaveBeenCalledTimes(1);
+    expect(models.context).toBeNull();
+    expect(models.states[CATALOG[0].id]).toBe('ready');
+  },
+);
 test('discards a load completed after the app leaves the foreground', async () => {
   const active = context();
   let resolve: (value: unknown) => void = () => {};
