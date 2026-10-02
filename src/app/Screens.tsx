@@ -20,6 +20,7 @@ import { isVision } from './useModelController';
 import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
 import { formatBytes, type Colors } from '../ui/theme';
+import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
   const { colors, models, chat } = app;
   return (
@@ -103,6 +104,14 @@ export function ScreenContent({ app }: { app: AppController }) {
         colors={colors}
       >
         <History app={app} onSelect={() => app.setHistoryVisible(false)} />
+      </Sheet>
+      <Sheet
+        visible={app.documentsVisible}
+        onClose={() => app.setDocumentsVisible(false)}
+        title="Local documents"
+        colors={colors}
+      >
+        <DocumentLibraryView controller={app.documents} colors={colors} />
       </Sheet>
     </View>
   );
@@ -234,6 +243,25 @@ function SettingsScreen({ app }: { app: AppController }) {
           icon="sliders"
           colors={colors}
           onPress={() => app.setChatSettingsVisible(true)}
+        />
+      </View>
+      <Text style={[styles.section, { color: colors.accent }]}>Knowledge</Text>
+      <View
+        style={[
+          styles.group,
+          styles.padded,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Text style={[styles.paragraph, { color: colors.muted }]}>
+          Add local Markdown or text documents. Retrieved passages are included
+          in chat without leaving this device.
+        </Text>
+        <Button
+          label="Manage local documents"
+          icon="models"
+          colors={colors}
+          onPress={() => app.setDocumentsVisible(true)}
         />
       </View>
       <Text style={[styles.section, { color: colors.accent }]}>Privacy</Text>

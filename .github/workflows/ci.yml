@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           ruby -e "Dir['.github/workflows/*.{yml,yaml}'].each { |f| YAML.load_file(f); puts \"valid YAML: #{f}\" }" -ryaml
           test -s README.md
-          test -s docs/USER_STORIES.md
+          test -s docs/PRODUCT_BRIEF.md
           test -s docs/CI_CD.md
 
   app-quality:

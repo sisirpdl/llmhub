@@ -169,6 +169,11 @@ export function ChatView({
           Older turns were omitted to fit the model’s context window.
         </Text>
       ) : null}
+      {chat.retrievedSources.length ? (
+        <Text style={[styles.notice, { color: colors.muted }]}>
+          Sources used: {chat.retrievedSources.map((source, index) => `[${index + 1}] ${source.documentName}`).join(' · ')}
+        </Text>
+      ) : null}
       <Text
         accessibilityLiveRegion="polite"
         style={[styles.status, { color: colors.muted }]}
