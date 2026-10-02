@@ -12,12 +12,15 @@ This document records the implemented capabilities and product direction. Techni
 
 | Capability | Current state | Next requirement |
 | --- | --- | --- |
-| Text chat | Streaming, Stop, local history, automatic/manual titles, model attribution and switching. | Full markdown/code highlighting and message edit/regenerate. |
+| Text chat | Streaming, Stop, native OpenAI messages, portable JSON import/export, local history, automatic/manual titles, model attribution and switching. | Full markdown/code highlighting and message edit/regenerate. |
+| Local document retrieval | Markdown/TXT import, local chunks, keyword retrieval, reference context and latest-response source labels. | PDF extraction, embeddings, exact token budgets and navigable/validated citations. |
 | Vision | Image attachments saved locally; compatible model/projector loading and switch warnings. | Validate physical-device compatibility and memory independently. |
 | Model hub | Hugging Face, local GGUF, direct HTTPS imports; phone-size filtering, variant RAM/storage estimates. | Curated recommendations and measured chip-specific guidance. |
 | Settings | Per-model sampling/context settings, conversation system instruction, staged Apply/Cancel/Reset. | Validated advanced chat-template override; retain embedded templates by default. |
 | Downloads | Progress, verification, retry and persistent completed models. | Platform-native background transfers and genuine pause/resume. |
 | Presentation | Separate Android/iOS shells and discovery controls. | Native-stack navigation, iOS title/back behavior and Android FAB/ripple refinement. |
+
+Chat import/export and its privacy, format and media limits are documented in [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md). App Info and engine diagnostics are the final section of Settings; iOS has Chat, Models and Settings tabs.
 
 The current starter packages remain Qwen2.5 1.5B Instruct Q4_K_M and SmolVLM Instruct with its projector. Qwen3 1.7B and SmolVLM 500M are evaluation candidates, not promoted defaults. See [MODEL_IMPORTS.md](MODEL_IMPORTS.md).
 
@@ -25,7 +28,7 @@ A RAM check is guidance, not a guarantee that a model can load. Unknown metadata
 
 ## Differentiators in build order
 
-1. **On-device RAG:** attach PDF/markdown documents, retrieve passages, and answer with citations entirely offline. This is the first major differentiator after stabilizing the core.
+1. **On-device RAG:** expand the existing Markdown/TXT keyword-retrieval baseline into PDF/markdown document chat with local embeddings and navigable, validated citations. This is the first major differentiator after stabilizing the core; the full pipeline is planned, while basic local retrieval is implemented.
 2. **Curated model hub:** plain-language recommendations, per-device fit checks, and benchmarks tied to exact model/chip configurations. Existing phone-focused discovery is the starting point.
 3. **P2P sharing:** distribute model files over local WiFi without internet, using platform-native discovery/transport, chunk verification, and final verification against a previously trusted upstream digest.
 4. **LAN hosting:** one device explicitly hosts inference for other devices on the same WiFi through an OpenAI-compatible endpoint. This is an opt-in personal-cloud mode with a different privacy boundary.
