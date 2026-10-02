@@ -2,7 +2,7 @@
 
 ## User flow
 
-Open a chat's **Chat documents** control (also available in its header menu). Add a PDF, Markdown or TXT file, or tap a library entry to attach/detach it. A successful import from a chat attaches the new document to that chat. Settings → Manage local documents adds files to the shared library without attaching them anywhere.
+Open a chat's **Ask your docs** control (also available in its header menu). Add a PDF, Markdown or TXT file, or tap a library entry or its connector icon to connect/disconnect it. A joined green link means connected; a muted broken link means disconnected. The accessibility state also announces the selection. A successful import from a chat attaches the new document to that chat. Settings → Manage local documents adds files to the shared library without attaching them anywhere.
 
 Each chat searches only its attached documents. New, existing and JSON-imported chats default to no attachments. Selections persist locally with the conversation. One imported file can serve several chats without duplicate copies. Detaching affects only that chat; deleting from the library removes the original/index and requires affected chats to detach the missing attachment.
 

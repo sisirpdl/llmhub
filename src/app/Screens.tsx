@@ -83,7 +83,7 @@ export function ScreenContent({ app }: { app: AppController }) {
           }}
         />
         <Button
-          label="Chat documents"
+          label="Ask your docs"
           icon="models"
           colors={colors}
           disabled={chat.sending}
@@ -138,7 +138,7 @@ export function ScreenContent({ app }: { app: AppController }) {
       <Sheet
         visible={app.documentsVisible}
         onClose={() => app.setDocumentsVisible(false)}
-        title={app.route === 'chat' ? 'Chat documents' : 'Document library'}
+        title={app.route === 'chat' ? 'Ask your docs' : 'Document library'}
         colors={colors}
       >
         <DocumentLibraryView

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import type {
   LlamaContext,
   TokenData,
@@ -539,12 +539,14 @@ export function useChatController({
       ],
     );
   }
-  async function attachImage() {
+  async function attachImage(source: 'camera' | 'gallery' = 'gallery') {
     if (!vision || !context || busy.current) return;
     onImagePickerStateChange?.(true);
     try {
-      const result = await launchImageLibrary({
+      const pickImage = source === 'camera' ? launchCamera : launchImageLibrary;
+      const result = await pickImage({
         mediaType: 'photo',
+        saveToPhotos: false,
         selectionLimit: 1,
         maxWidth: 2048,
         maxHeight: 2048,

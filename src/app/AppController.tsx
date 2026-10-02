@@ -162,7 +162,7 @@ export function useAppController() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Export chat', 'Chat documents'],
+          options: ['Cancel', 'Export chat', 'Ask your docs'],
           cancelButtonIndex: 0,
         },
         index => {
@@ -173,9 +173,26 @@ export function useAppController() {
     } else setChatMenuVisible(true);
   }
   function requestImageAttachment() {
-    if (chat.sending) return;
-    if (models.context && isVision(models.model)) chat.attachImage();
-    else setVisionSetupVisible(true);
+    if (chat.sending || transferBusy.current) return;
+    const choose = (source: 'camera' | 'gallery') => {
+      if (models.context && isVision(models.model)) chat.attachImage(source);
+      else setVisionSetupVisible(true);
+    };
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Camera', 'Gallery'], cancelButtonIndex: 0 },
+        index => {
+          if (index === 1) choose('camera');
+          if (index === 2) choose('gallery');
+        },
+      );
+    } else {
+      Alert.alert('Add image', 'Choose where to get your image.', [
+        { text: 'Camera', onPress: () => choose('camera') },
+        { text: 'Gallery', onPress: () => choose('gallery') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
   }
   return {
     transfer,

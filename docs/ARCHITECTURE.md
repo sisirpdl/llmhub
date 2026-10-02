@@ -38,7 +38,7 @@ Only one generation context remains active by default. RAG embeddings may requir
 
 ## Current local document retrieval
 
-Users import `.pdf`, `.md`, `.markdown` or `.txt` files from Chat documents or Settings → Manage local documents. Originals, hashes and versioned chunk caches live in private app storage. PDFKit extracts text page by page on iOS; bundled PDFBox-Android 2.0.27.0 does the same across supported Android versions. Native extraction runs on a serial worker queue. Scans require OCR and receive an unsupported explanation; mixed PDFs retain searchable pages and report pages without extractable text. See [PDF_RAG.md](PDF_RAG.md) for limits and validation.
+Users import `.pdf`, `.md`, `.markdown` or `.txt` files from Ask your docs or Settings → Manage local documents. Originals, hashes and versioned chunk caches live in private app storage. PDFKit extracts text page by page on iOS; bundled PDFBox-Android 2.0.27.0 does the same across supported Android versions. Native extraction runs on a serial worker queue. Scans require OCR and receive an unsupported explanation; mixed PDFs retain searchable pages and report pages without extractable text. See [PDF_RAG.md](PDF_RAG.md) for limits and validation.
 
 The library is shared, but each conversation keeps optional local `documentIds` alongside its UI metadata. Only attached documents are searched; existing/new/imported chats default to no attachments. Legacy Markdown/TXT files receive caches on first restore. Deleting a library file removes its original/index and leaves a clearly detachable missing attachment in affected chats.
 

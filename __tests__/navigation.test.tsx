@@ -1,6 +1,6 @@
 import React from 'react';
 import Renderer from 'react-test-renderer';
-import { Platform, ActionSheetIOS } from 'react-native';
+import { Platform, ActionSheetIOS, Alert } from 'react-native';
 import { exportChat, importChatFile } from '../src/chat/chatTransfer';
 import { useAppController, type AppController } from '../src/app/AppController';
 import AndroidAppShell from '../src/app/AppShell.android';
@@ -22,6 +22,7 @@ jest.mock('llama.rn', () => ({
 }));
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
+  launchCamera: jest.fn(),
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 20, left: 0 }),
@@ -117,6 +118,18 @@ test.each(['android', 'ios'] as const)(
   '%s offers vision setup when attaching without a loaded vision model',
   async platform => {
     let renderer: Renderer.ReactTestRenderer;
+    let select = () => {};
+    const sheet = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => {
+        select = () => callback(1);
+      });
+    const alert = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_title, _message, buttons) => {
+        select = () =>
+          buttons?.find(button => button.text === 'Camera')?.onPress?.();
+      });
     await Renderer.act(async () => {
       renderer = Renderer.create(<Harness platform={platform} />);
     });
@@ -128,9 +141,15 @@ test.each(['android', 'ios'] as const)(
         .findByProps({ accessibilityLabel: 'Attach image' })
         .props.onPress();
     });
+    expect(app.visionSetupVisible).toBe(false);
+    await Renderer.act(async () => {
+      select();
+    });
     expect(app.visionSetupVisible).toBe(true);
     expect(app.route).toBe('chat');
     await Renderer.act(async () => renderer!.unmount());
+    sheet.mockRestore();
+    alert.mockRestore();
   },
 );
 
@@ -261,7 +280,7 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
   });
   expect(sheet).toHaveBeenCalledWith(
     {
-      options: ['Cancel', 'Export chat', 'Chat documents'],
+      options: ['Cancel', 'Export chat', 'Ask your docs'],
       cancelButtonIndex: 0,
     },
     expect.any(Function),

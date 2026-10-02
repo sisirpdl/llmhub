@@ -103,7 +103,11 @@ export function DocumentLibraryView({
           <Pressable
             accessibilityRole={onToggle ? 'checkbox' : 'text'}
             accessibilityLabel={`${document.name}${
-              onToggle ? ', use in this chat' : ''
+              onToggle
+                ? selected?.includes(document.id)
+                  ? ', connected, tap to disconnect'
+                  : ', disconnected, tap to connect'
+                : ''
             }`}
             accessibilityState={{
               checked: selected?.includes(document.id),
@@ -119,11 +123,7 @@ export function DocumentLibraryView({
             <Text style={[styles.meta, { color: colors.muted }]}>
               {Math.ceil(document.size / 1024)} KB
               {document.pageCount ? ` · ${document.pageCount} pages` : ''}
-              {onToggle
-                ? selected?.includes(document.id)
-                  ? ' · Attached'
-                  : ' · Tap to attach'
-                : ' · indexed locally'}
+              {!onToggle ? ' · indexed locally' : ''}
             </Text>
             {document.emptyPages ? (
               <Text style={[styles.meta, { color: colors.muted }]}>
@@ -132,6 +132,30 @@ export function DocumentLibraryView({
               </Text>
             ) : null}
           </Pressable>
+          {onToggle ? (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityLabel={`${document.name} connection`}
+              accessibilityState={{
+                checked: Boolean(selected?.includes(document.id)),
+                disabled: disabled || controller.working,
+              }}
+              disabled={disabled || controller.working}
+              onPress={() => onToggle(document.id)}
+              style={styles.connector}
+              android_ripple={{ color: colors.border, borderless: true }}
+            >
+              <Icon
+                name={
+                  selected?.includes(document.id) ? 'connected' : 'disconnected'
+                }
+                color={
+                  selected?.includes(document.id) ? colors.green : colors.muted
+                }
+                size={22}
+              />
+            </Pressable>
+          ) : null}
           <IconButton
             name="trash"
             label={`Remove ${document.name}`}
@@ -172,7 +196,13 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
   },
-  name: { flex: 1, gap: 3 },
+  connector: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  name: { flex: 1, gap: 3, minHeight: 44, justifyContent: 'center' },
   meta: { fontSize: 12 },
   empty: { paddingVertical: 8 },
 });

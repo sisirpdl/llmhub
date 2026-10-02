@@ -16,6 +16,7 @@ import { messageText } from './chatDocument';
 import { useChatController, type ChatController } from './useChatController';
 import { SUPPORTED_MODELS } from '../models/modelCatalog';
 import { darkColors } from '../ui/theme';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import type { LlamaContext } from 'llama.rn';
 import type { RetrievedChunk } from '../documents/documentIndex';
 
@@ -29,6 +30,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
+  launchCamera: jest.fn(),
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -767,4 +769,48 @@ test('restores local document selections without changing portable messages', as
   } finally {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   }
+});
+
+test.each(['camera', 'gallery'] as const)(
+  'picks %s photos only with a loaded vision model and saves them privately',
+  async source => {
+    const picker = source === 'camera' ? launchCamera : launchImageLibrary;
+    (picker as jest.Mock).mockResolvedValue({
+      assets: [{ uri: 'file:///temporary/photo.jpg' }],
+    });
+    await ReactTestRenderer.act(async () => {
+      renderers.push(
+        ReactTestRenderer.create(
+          <Harness
+            context={{ completion: jest.fn() } as unknown as LlamaContext}
+            vision
+          />,
+        ),
+      );
+    });
+    await ReactTestRenderer.act(async () => {
+      await chat.attachImage(source);
+    });
+    expect(picker).toHaveBeenCalledWith(
+      expect.objectContaining({ mediaType: 'photo', saveToPhotos: false }),
+    );
+    expect(chat.imageUri).toMatch(/^file:\/\/\/docs\/chat-images\//);
+  },
+);
+test('camera and gallery are blocked for a text model', async () => {
+  await ReactTestRenderer.act(async () => {
+    renderers.push(
+      ReactTestRenderer.create(
+        <Harness
+          context={{ completion: jest.fn() } as unknown as LlamaContext}
+        />,
+      ),
+    );
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.attachImage('camera');
+    await chat.attachImage('gallery');
+  });
+  expect(launchCamera).not.toHaveBeenCalled();
+  expect(launchImageLibrary).not.toHaveBeenCalled();
 });

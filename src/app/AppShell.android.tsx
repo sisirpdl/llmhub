@@ -245,6 +245,14 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
               </Text>
               <History app={app} onSelect={() => setDrawer(false)} />
             </ScrollView>
+            <View
+              style={[styles.drawerFooter, { borderTopColor: colors.border }]}
+            >
+              <Icon name="shield" size={14} color={colors.muted} />
+              <Text style={[styles.footerText, { color: colors.muted }]}>
+                On device · No cloud
+              </Text>
+            </View>
           </Animated.View>
         </View>
       </Modal>
@@ -272,6 +280,14 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, marginTop: 2 },
   drawerBackdrop: { flex: 1 },
   drawer: { width: '80%', maxWidth: 360, height: '100%' },
+  footerText: { fontSize: 12 },
+  drawerFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   drawerContent: { paddingHorizontal: 16, paddingBottom: 24 },
   drawerBrand: {
     flexDirection: 'row',
