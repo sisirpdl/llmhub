@@ -36,6 +36,8 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Host your local model or connect to a trusted LLMHub device on the same Wi-Fi.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo to ask your on-device vision model about it.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

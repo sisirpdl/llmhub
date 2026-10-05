@@ -105,7 +105,7 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                 style={[styles.subtitle, { color: colors.muted }]}
               >
                 {app.models.context
-                  ? modelLabel(app.models.model)
+                  ? modelLabel(app.chatModel)
                   : 'No model loaded'}
               </Text>
             ) : null}
@@ -250,7 +250,11 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
             >
               <Icon name="shield" size={14} color={colors.muted} />
               <Text style={[styles.footerText, { color: colors.muted }]}>
-                On device · No cloud
+                {app.lan.remote
+                  ? 'Local Wi-Fi · Remote inference'
+                  : app.lan.host
+                  ? 'Hosting on local Wi-Fi'
+                  : 'On device · No cloud'}
               </Text>
             </View>
           </Animated.View>

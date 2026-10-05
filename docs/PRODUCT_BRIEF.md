@@ -18,6 +18,7 @@ This document records the implemented capabilities and product direction. Techni
 | Model hub | Hugging Face, local GGUF, direct HTTPS imports; phone-size filtering, variant RAM/storage estimates. | Curated recommendations and measured chip-specific guidance. |
 | Settings | Per-model sampling/context settings, conversation system instruction, staged Apply/Cancel/Reset. | Validated advanced chat-template override; retain embedded templates by default. |
 | Downloads | Progress, verification, retry and persistent completed models. | Platform-native background transfers and genuine pause/resume. |
+| LAN hosting preview | Manual address/key pairing, authenticated OpenAI-compatible text chat, foreground host/client controls. | Native builds/two-device validation, TLS/pinned identity, streaming and discovery. |
 | Presentation | Separate Android/iOS shells and discovery controls. | Native-stack navigation, iOS title/back behavior and Android FAB/ripple refinement. |
 
 Chat import/export and its privacy, format and media limits are documented in [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md). App Info and engine diagnostics are the final section of Settings; iOS has Chat, Models and Settings tabs.
@@ -31,7 +32,7 @@ A RAM check is guidance, not a guarantee that a model can load. Unknown metadata
 1. **On-device RAG:** expand PDF/Markdown/TXT chat retrieval with OCR, local embeddings and navigable, validated citations. This is the first major differentiator after stabilizing the core; text PDF extraction and chat-scoped keyword retrieval are implemented; OCR and semantic retrieval remain planned.
 2. **Curated model hub:** plain-language recommendations, per-device fit checks, and benchmarks tied to exact model/chip configurations. Existing phone-focused discovery is the starting point.
 3. **P2P sharing:** distribute model files over local WiFi without internet, using platform-native discovery/transport, chunk verification, and final verification against a previously trusted upstream digest.
-4. **LAN hosting:** one device explicitly hosts inference for other devices on the same WiFi through an OpenAI-compatible endpoint. This is an opt-in personal-cloud mode with a different privacy boundary.
+4. **LAN hosting:** one device explicitly hosts inference for other devices on the same WiFi through an OpenAI-compatible endpoint. A foreground text-only preview now provides manual address/key pairing and completed responses; native/device checks, secure transport, discovery, and streaming remain planned. This opt-in mode has a different privacy boundary; see [LAN_HOSTING.md](LAN_HOSTING.md).
 5. **Later multimodal and skills:** extend the existing vision preview toward validated vision/audio and offline tools for notes, reminders, and calendar use.
 
 P2P begins with a reliable direct peer transfer. Multi-peer scheduling is a later expansion of the BitTorrent-style vision; distributed inference across phones is outside v1.

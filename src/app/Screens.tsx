@@ -21,6 +21,7 @@ import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
 import { formatBytes, type Colors } from '../ui/theme';
 import { HuggingFaceTokenSettings } from '../settings/HuggingFaceTokenSettings';
+import { LanSettings } from '../lan/LanSettings';
 import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
   const { colors, models, chat } = app;
@@ -51,12 +52,24 @@ export function ScreenContent({ app }: { app: AppController }) {
         />
       ) : app.route === 'chat' ? (
         <ChatView
+          lanStatus={
+            app.lan.remote ? 'remote' : app.lan.host ? 'hosting' : undefined
+          }
           chat={chat}
           colors={colors}
-          active={Boolean(models.context) && !app.transfer}
-          vision={isVision(models.model)}
+          active={
+            Boolean(app.lan.remote || models.context) &&
+            !app.lan.host &&
+            !app.lan.pending &&
+            !app.transfer
+          }
+          vision={!app.lan.remote && isVision(models.model)}
           onModels={() => app.setRoute('models')}
-          onPicker={() => app.setPickerVisible(true)}
+          onPicker={() =>
+            app.lan.remote || app.lan.host
+              ? app.setRoute('settings')
+              : app.setPickerVisible(true)
+          }
           settingsVisible={app.chatSettingsVisible}
           onCloseSettings={() => app.setChatSettingsVisible(false)}
           onSettings={() => app.setChatSettingsVisible(true)}
@@ -123,7 +136,11 @@ export function ScreenContent({ app }: { app: AppController }) {
         systemPrompt={chat.systemPrompt}
         onApply={app.applyModelSettings}
         colors={colors}
-        disabled={chat.sending || !app.settings.loaded}
+        disabled={
+          chat.sending ||
+          !app.settings.loaded ||
+          Boolean(app.lan.host || app.lan.remote)
+        }
       />
       <RenameChatSheet
         visible={app.renameVisible}
@@ -256,6 +273,10 @@ function SettingsScreen({ app }: { app: AppController }) {
         onApply={app.models.setHfToken}
         colors={colors}
       />
+      <Text style={[styles.section, { color: colors.accent }]}>
+        Local Wi-Fi · Preview
+      </Text>
+      <LanSettings app={app} />
       <Text style={[styles.section, { color: colors.accent }]}>Appearance</Text>
       <View
         style={[
@@ -314,7 +335,8 @@ function SettingsScreen({ app }: { app: AppController }) {
       >
         <Text style={[styles.paragraph, { color: colors.muted }]}>
           Import PDFs, Markdown, or text files. Attach documents to each chat to
-          search them without leaving this device.
+          search them locally. In LAN mode, retrieved passages are sent to your
+          host.
         </Text>
         <Button
           label="Manage local documents"
@@ -339,7 +361,8 @@ function SettingsScreen({ app }: { app: AppController }) {
         </View>
         <Text style={[styles.paragraph, { color: colors.muted }]}>
           Models and conversations are stored on this device. No account, cloud
-          inference, or chat telemetry. Model downloads need internet.
+          inference, or chat telemetry. Optional LAN mode sends messages to your
+          chosen host phone. Model downloads need internet.
         </Text>
       </View>
       <Text style={[styles.caption, styles.footnote, { color: colors.muted }]}>
@@ -386,7 +409,7 @@ function InfoSection({ app }: { app: AppController }) {
         <Icon name="chat" color={colors.accent} size={44} />
         <Text style={[styles.brandName, { color: colors.text }]}>LLMHub</Text>
         <Text style={[styles.paragraph, { color: colors.muted }]}>
-          A local conversation, kept local.
+          Local models, offline intelligence.
         </Text>
       </View>
       <Text style={[styles.section, { color: colors.accent }]}>
