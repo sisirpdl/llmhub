@@ -18,6 +18,8 @@ Dark appearance is the first-run default; Dark, Light and Follow system are pers
 
 ## Chat actions and settings
 
+Settings begins with a masked Hugging Face token field, Apply/Remove controls and a token-creation link. It shares one in-memory credential with model discovery/downloads and clears on app restart.
+
 Android's header ⋮ opens Export chat and Ask your docs; Import chat is in the main drawer. iOS uses a native action sheet with export and Ask your docs and an import entry in its Conversations sheet. Export/import uses one portable JSON chat document, with supported images embedded for transfer. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md).
 
 The composer uses a gallery icon for Camera/Gallery selection, a switch icon for the model picker, and a settings control. Camera/Gallery requires a loaded compatible vision model; otherwise vision setup guides downloading/loading first. “Ask your docs · N connected” occupies the chat status row. Document rows toggle green joined-link/muted broken-link connectors. The Android drawer footer shows “On device · No cloud”. App Info and engine diagnostics are the final Settings section rather than a separate destination/tab. Settings includes the shared PDF/Markdown/TXT library. The chat's document control selects attachments for that conversation. Latest-response passage labels include PDF page numbers and open the extracted passage; full PDF navigation and verified citations remain planned.

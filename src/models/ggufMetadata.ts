@@ -1,3 +1,4 @@
+import { hfAuthHeaders } from './hfAuth';
 import 'fast-text-encoding';
 import { gguf } from '@huggingface/gguf';
 import { hubDownloadUrl, type HubDetails, type HubFile } from './huggingFace';
@@ -20,8 +21,8 @@ export function rangeFetch(signal: AbortSignal, token: string): typeof fetch {
       Object.entries(headers || {}).forEach(([key, value]) =>
         xhr.setRequestHeader(key, value),
       );
-      if (token.trim())
-        xhr.setRequestHeader('Authorization', `Bearer ${token.trim()}`);
+      const auth = hfAuthHeaders(String(input), token);
+      if (auth) xhr.setRequestHeader('Authorization', auth.Authorization);
       const cancel = () => xhr.abort();
       const cleanup = () => signal.removeEventListener('abort', cancel);
       signal.addEventListener('abort', cancel);

@@ -19,7 +19,7 @@ jest.mock('react-native-blob-util', () => ({
 }))
 
 import {SUPPORTED_MODELS} from './modelCatalog'
-import {downloadModel, hasEnoughSpace, isModelReady, modelPath} from './modelStore'
+import {downloadModel, downloadVerifiedArtifact, hasEnoughSpace, isModelReady, modelPath} from './modelStore'
 
 const mockFS = jest.requireMock('react-native-fs').default
 const mockBlob = jest.requireMock('react-native-blob-util').default
@@ -78,4 +78,14 @@ test('removes an invalid download and never promotes it', async () => {
   await expect(downloadModel(model, jest.fn())).rejects.toThrow('Checksum verification failed')
   expect(mockUnlink).toHaveBeenCalledWith(`${modelPath(model)}.part`)
   expect(mockMoveFile).not.toHaveBeenCalled()
+})
+
+test('authenticated model and projector downloads send the token only to the Hub', async () => {
+  mockHash.mockResolvedValue(model.sha256)
+  await downloadModel(model, jest.fn(), undefined, ' hf_read ')
+  expect(mockDownloadFile).toHaveBeenLastCalledWith(expect.objectContaining({headers: {Authorization: 'Bearer hf_read'}}))
+  await downloadVerifiedArtifact({fileName: 'projector.gguf', url: 'https://huggingface.co/org/model/resolve/main/projector.gguf', byteSize: 10, sha256: model.sha256}, jest.fn(), 'hf_read')
+  expect(mockDownloadFile).toHaveBeenLastCalledWith(expect.objectContaining({headers: {Authorization: 'Bearer hf_read'}}))
+  await downloadModel({...model, url: 'https://example.com/model.gguf'}, jest.fn(), undefined, 'hf_read')
+  expect(mockDownloadFile).toHaveBeenLastCalledWith(expect.objectContaining({headers: undefined}))
 })

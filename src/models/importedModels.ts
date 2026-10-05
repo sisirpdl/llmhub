@@ -1,3 +1,4 @@
+import {hfAuthHeaders} from './hfAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNFS from 'react-native-fs';
 import RNBlobUtil from 'react-native-blob-util';
@@ -279,10 +280,7 @@ export async function downloadImport(
       const temporary = `${artifactPath(artifact.name)}.part`;
       created.push(temporary);
       if (await RNFS.exists(temporary)) await RNFS.unlink(temporary);
-      const headers =
-        model.origin === 'huggingface' && token.trim()
-          ? { Authorization: `Bearer ${token.trim()}` }
-          : undefined;
+      const headers = hfAuthHeaders(artifact.url, token);
       let exceededSpace = false;
       let jobId: number | undefined;
       const task = RNFS.downloadFile({
@@ -315,7 +313,7 @@ export async function downloadImport(
       if (result.statusCode < 200 || result.statusCode >= 300)
         throw new Error(
           result.statusCode === 401 || result.statusCode === 403
-            ? 'Access denied. Accept the Hugging Face license and provide a read token.'
+            ? 'Access denied. Accept the Hugging Face license and enter a read token in Settings.'
             : `Download failed with HTTP ${result.statusCode}.`,
         );
       onValidation();

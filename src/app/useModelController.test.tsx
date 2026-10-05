@@ -14,7 +14,7 @@ import {
   CATALOG,
   type ModelController,
 } from './useModelController';
-import { downloadVerifiedArtifact } from '../models/modelStore';
+import { downloadVerifiedArtifact, downloadModel } from '../models/modelStore';
 import { SUPPORTED_VISION_MODELS } from '../models/visionCatalog';
 jest.mock('llama.rn', () => ({
   initLlama: jest.fn(),
@@ -157,6 +157,7 @@ test('downloads the declared vision projector as a separate verified artifact', 
       byteSize: vision.projectorByteSize,
     }),
     expect.any(Function),
+    '',
   );
 });
 
@@ -190,4 +191,48 @@ test('keeps the model loaded while the native image picker is open', async () =>
     models.setExternalUIActive(false);
   });
   expect(native.release).toHaveBeenCalled();
+});
+
+test('uses the current shared token for model/projector retries and removes it completely', async () => {
+  await Renderer.act(async () => {
+    models.setHfToken(' hf_first ');
+  });
+  await Renderer.act(async () => {
+    await models.download(CATALOG[1]);
+  });
+  expect(downloadModel).toHaveBeenLastCalledWith(
+    CATALOG[1],
+    expect.any(Function),
+    expect.any(Function),
+    'hf_first',
+  );
+  expect(downloadVerifiedArtifact).toHaveBeenLastCalledWith(
+    expect.any(Object),
+    expect.any(Function),
+    'hf_first',
+  );
+  await Renderer.act(async () => {
+    models.setHfToken('hf_second');
+  });
+  await Renderer.act(async () => {
+    await models.download(CATALOG[0]);
+  });
+  expect(downloadModel).toHaveBeenLastCalledWith(
+    CATALOG[0],
+    expect.any(Function),
+    expect.any(Function),
+    'hf_second',
+  );
+  await Renderer.act(async () => {
+    models.setHfToken('');
+  });
+  await Renderer.act(async () => {
+    await models.download(CATALOG[0]);
+  });
+  expect(downloadModel).toHaveBeenLastCalledWith(
+    CATALOG[0],
+    expect.any(Function),
+    expect.any(Function),
+    '',
+  );
 });
