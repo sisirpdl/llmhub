@@ -77,7 +77,12 @@ export function useModelController(options?: {
   const [generationActive, setGenerationActive] = useState(false);
   const active = useRef<{ context: LlamaContext; id: string } | null>(null);
   const busy = useRef(false);
-  const tokens = useRef<Record<string, string>>({});
+  const [hfToken, updateHfToken] = useState('');
+  const hfTokenRef = useRef('');
+  function setHfToken(value: string) {
+    hfTokenRef.current = value.trim();
+    updateHfToken(hfTokenRef.current);
+  }
   const releasing = useRef<Promise<void> | null>(null);
   const operation = useRef(0);
   const foreground = useRef(
@@ -210,6 +215,7 @@ export function useModelController(options?: {
   }
 
   async function download(item: ModelManifest, token = '') {
+    const accessToken = token.trim() || hfTokenRef.current;
     if (busy.current || generationActive) return;
     if (
       !isImported(item) &&
@@ -246,7 +252,7 @@ export function useModelController(options?: {
             }));
           },
           () => setState(item.id, 'validating'),
-          token || tokens.current[item.id] || '',
+          accessToken,
         );
         try {
           await saveCustom(
@@ -267,6 +273,7 @@ export function useModelController(options?: {
               [item.id]: { bytes: p.bytesWritten, total },
             })),
           () => setState(item.id, 'validating'),
+          accessToken,
         );
         if (isVision(item)) {
           setState(item.id, 'downloading');
@@ -282,6 +289,7 @@ export function useModelController(options?: {
                 ...current,
                 [item.id]: { bytes: item.byteSize + p.bytesWritten, total },
               })),
+            accessToken,
           );
         }
       }
@@ -457,7 +465,7 @@ export function useModelController(options?: {
     }
     const target = existing || item;
     if (!existing) await saveCustom([...customRef.current, target]);
-    if (token) tokens.current[target.id] = token;
+    if (token.trim()) setHfToken(token);
     download(target, token).catch(() =>
       setNotice('Unable to start this download. Try again.'),
     );
@@ -494,6 +502,8 @@ export function useModelController(options?: {
     if (!value && !foreground.current) offload();
   }
   return {
+    hfToken,
+    setHfToken,
     loadedContextLength,
     setExternalUIActive,
     catalog,

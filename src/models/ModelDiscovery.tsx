@@ -61,11 +61,13 @@ export function ModelDiscovery({
   onClose,
   controller,
   colors,
+  onTokenSettings,
 }: {
   visible: boolean;
   onClose: () => void;
   controller: ModelController;
   colors: Colors;
+  onTokenSettings?: () => void;
 }) {
   const [page, setPage] = useState<'add' | 'hub' | 'local' | 'remote'>('add');
   const [mode, setMode] = useState<HubMode>('trending');
@@ -85,7 +87,7 @@ export function ModelDiscovery({
     [filters, mode],
   );
   const [filterOpen, setFilterOpen] = useState(false);
-  const [token, setToken] = useState('');
+  const token = controller.hfToken || '';
   const [models, setModels] = useState<HubModel[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -106,7 +108,6 @@ export function ModelDiscovery({
     if (!visible) {
       session.current++;
       request.current?.abort();
-      setToken('');
       setPage('add');
       setRepository(null);
       setDetails(null);
@@ -448,16 +449,18 @@ export function ModelDiscovery({
                     }
                   />
                 </View>
-                {field(
-                  'Hugging Face read token (optional)',
-                  token,
-                  setToken,
-                  true,
-                )}
                 <Text style={[s.small, { color: colors.muted }]}>
-                  Token stays in memory for downloads and is never saved to
-                  storage.
+                  {token
+                    ? 'Hugging Face token configured for this session.'
+                    : 'For authenticated downloads, enter a read token in Settings.'}
                 </Text>
+                {onTokenSettings ? (
+                  <Button
+                    label="Hugging Face token settings"
+                    colors={colors}
+                    onPress={onTokenSettings}
+                  />
+                ) : null}
               </ScrollView>
             ) : null}
             {loading ? (

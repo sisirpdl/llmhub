@@ -496,7 +496,7 @@ export function GGUFVariants({
         ) : null}
         {details.model.gated ? (
           <Text style={[s.small, { color: colors.muted }]}>
-            Accept the repository license and provide a read token in Filters.
+            Accept the repository license and enter a read token in Settings.
           </Text>
         ) : null}
       </ScrollView>

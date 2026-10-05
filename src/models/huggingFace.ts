@@ -180,7 +180,7 @@ async function hubRequest(
   if (!response.ok) {
     if (response.status === 401 || response.status === 403)
       throw new Error(
-        'Access denied. Accept the model license on Hugging Face and enter a read token in Filters.',
+        'Access denied. Accept the model license on Hugging Face and enter a read token in Settings.',
       );
     if (response.status === 429)
       throw new Error('Hugging Face is busy. Wait a moment, then retry.');

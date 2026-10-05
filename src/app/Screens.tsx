@@ -20,6 +20,7 @@ import { isVision } from './useModelController';
 import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
 import { formatBytes, type Colors } from '../ui/theme';
+import { HuggingFaceTokenSettings } from '../settings/HuggingFaceTokenSettings';
 import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
   const { colors, models, chat } = app;
@@ -102,6 +103,10 @@ export function ScreenContent({ app }: { app: AppController }) {
         onClose={() => app.setDiscoveryVisible(false)}
         controller={models}
         colors={colors}
+        onTokenSettings={() => {
+          app.setDiscoveryVisible(false);
+          app.setRoute('settings');
+        }}
       />
       <ModelPicker
         visible={app.pickerVisible}
@@ -243,6 +248,14 @@ function SettingsScreen({ app }: { app: AppController }) {
       contentContainerStyle={styles.page}
       keyboardShouldPersistTaps="handled"
     >
+      <Text style={[styles.section, { color: colors.accent }]}>
+        Hugging Face
+      </Text>
+      <HuggingFaceTokenSettings
+        token={app.models.hfToken}
+        onApply={app.models.setHfToken}
+        colors={colors}
+      />
       <Text style={[styles.section, { color: colors.accent }]}>Appearance</Text>
       <View
         style={[

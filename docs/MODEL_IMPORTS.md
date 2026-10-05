@@ -104,3 +104,11 @@ This UI change keeps the current Qwen2.5 1.5B and SmolVLM Instruct packages; pro
 Model-file imports are separate from chat import/export. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md) for the single native OpenAI JSON format, portable images, migration and file controls. Importing a chat does not download or load its named model. App Info/diagnostics now live at the end of Settings.
 
 Settings → Manage local documents imports PDF/Markdown/TXT into a shared private library. Ask your docs selects which files each chat searches; importing from a chat attaches the new file there. PDF text extraction, page labels and cached keyword indexes are implemented. OCR, embeddings and validated citations remain planned. See [PDF_RAG.md](PDF_RAG.md) for rebuild steps, limits and checks.
+
+## Hugging Face authentication
+
+Settings starts with a Hugging Face section: paste a read token, tap **Apply token**, then retry the download. **Remove token** clears the shared credential. The field is masked, with a visibility toggle and a link to Hugging Face token settings. Discovery filters link to this same section instead of owning a separate token.
+
+The token is shared across Hub browsing, GGUF metadata checks, built-in/imported model downloads, vision projector downloads and retries. It stays in process memory and must be entered again after an app restart; it is not written to AsyncStorage, model metadata or chat exports. A download snapshots its credential when it starts; changing/removing the token affects subsequent requests/downloads, not an already-running transfer. Authorization headers are attached only when the initial request URL is the HTTPS `huggingface.co` origin. Arbitrary remote URLs receive no credential.
+
+A read token does not grant model access by itself. Gated models may require accepting terms or receiving approval on the repository page with the same Hugging Face account. Authentication failures point back to Settings. Native provider/redirect and physical-device download checks remain required.

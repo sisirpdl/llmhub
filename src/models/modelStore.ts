@@ -1,5 +1,6 @@
 import RNBlobUtil from 'react-native-blob-util'
 import RNFS from 'react-native-fs'
+import {hfAuthHeaders, downloadHttpError} from './hfAuth'
 import type {ModelManifest} from './modelCatalog'
 
 export type DownloadProgress = {bytesWritten: number; totalBytes: number}
@@ -14,14 +15,15 @@ export function artifactPath(fileName: string): string { return `${MODEL_DIRECTO
 export async function downloadVerifiedArtifact(
   artifact: {fileName: string; url: string; byteSize: number; sha256: string},
   onProgress: (progress: DownloadProgress) => void,
+  token = '',
 ): Promise<string> {
   if ((await getAvailableSpace()) < artifact.byteSize + SAFETY_MARGIN_BYTES) throw new Error('Not enough free space for the vision model and projector.')
   await RNFS.mkdir(MODEL_DIRECTORY)
   const finalPath = artifactPath(artifact.fileName)
   const temporaryPath = `${finalPath}.part`
   if (await RNFS.exists(temporaryPath)) await RNFS.unlink(temporaryPath)
-  const result = await RNFS.downloadFile({fromUrl: artifact.url, toFile: temporaryPath, progressDivider: 1, progress: ({bytesWritten, contentLength}) => onProgress({bytesWritten, totalBytes: contentLength || artifact.byteSize})}).promise
-  if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(`Download failed with HTTP ${result.statusCode}.`)
+  const result = await RNFS.downloadFile({fromUrl: artifact.url, toFile: temporaryPath, headers: hfAuthHeaders(artifact.url, token), progressDivider: 1, progress: ({bytesWritten, contentLength}) => onProgress({bytesWritten, totalBytes: contentLength || artifact.byteSize})}).promise
+  if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(downloadHttpError(result.statusCode))
   const checksum = await RNBlobUtil.fs.hash(temporaryPath, 'sha256')
   if (checksum.toLowerCase() !== artifact.sha256.toLowerCase()) { await RNFS.unlink(temporaryPath); throw new Error(`Checksum verification failed for ${artifact.fileName}.`) }
   if (await RNFS.exists(finalPath)) await RNFS.unlink(finalPath)
@@ -55,7 +57,7 @@ export async function isModelReady(model: ModelManifest): Promise<boolean> {
   }
 }
 
-export async function downloadModel(model: ModelManifest, onProgress: (progress: DownloadProgress) => void, onValidationStart?: () => void): Promise<void> {
+export async function downloadModel(model: ModelManifest, onProgress: (progress: DownloadProgress) => void, onValidationStart?: () => void, token = ''): Promise<void> {
   if (!(await hasEnoughSpace(model))) throw new Error('Not enough free space. Remove another model or free storage and retry.')
   await RNFS.mkdir(MODEL_DIRECTORY)
   const temporaryPath = `${modelPath(model)}.part`
@@ -63,11 +65,12 @@ export async function downloadModel(model: ModelManifest, onProgress: (progress:
   if (await RNFS.exists(temporaryPath)) await RNFS.unlink(temporaryPath)
   const result = await RNFS.downloadFile({
     fromUrl: model.url,
+    headers: hfAuthHeaders(model.url, token),
     toFile: temporaryPath,
     progressDivider: 1,
     progress: ({bytesWritten, contentLength}) => onProgress({bytesWritten, totalBytes: contentLength || model.byteSize}),
   }).promise
-  if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(`Download failed with HTTP ${result.statusCode}.`)
+  if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(downloadHttpError(result.statusCode))
   onValidationStart?.()
   const checksum = await RNBlobUtil.fs.hash(temporaryPath, 'sha256')
   if (checksum.toLowerCase() !== model.sha256.toLowerCase()) {
