@@ -69,7 +69,7 @@ export default function IOSAppShell({ app }: { app: AppController }) {
               style={[styles.subtitle, { color: colors.muted }]}
             >
               {app.models.context
-                ? modelLabel(app.models.model)
+                ? modelLabel(app.chatModel)
                 : 'No model loaded'}
             </Text>
           ) : null}

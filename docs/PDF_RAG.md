@@ -76,3 +76,7 @@ Rebuild on iOS and Android, then copy the fixture PDFs to each device's Files/Do
 7. Delete a file used by both chats. Check both chats report a missing attachment and can detach it; unrelated document queries continue after the library refresh.
 8. Export/import chat A. Check JSON retains the ordinary messages and generated answer, excludes PDF data/attachment IDs, and the imported chat starts without attachments.
 9. Background during import/generation and open/cancel the system picker with a loaded model. Check session cleanup, partial responses and model lifecycle behavior.
+
+## LAN inference
+
+In optional LAN mode, document parsing and retrieval still run on the client. PDF files/indexes are not transferred; retrieved reference passages are sent with the OpenAI messages to the selected host over local HTTP. See [LAN_HOSTING.md](LAN_HOSTING.md) for the privacy boundary and preview limitations.

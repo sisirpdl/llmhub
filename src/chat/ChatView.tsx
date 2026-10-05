@@ -27,6 +27,7 @@ export function ChatView({
   onSettings,
   onAttachImage,
   onDocuments,
+  lanStatus,
 }: {
   chat: ChatController;
   colors: Colors;
@@ -39,6 +40,7 @@ export function ChatView({
   onSettings?: () => void;
   onAttachImage?: () => void;
   onDocuments?: () => void;
+  lanStatus?: 'remote' | 'hosting';
 }) {
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
@@ -101,14 +103,22 @@ export function ChatView({
               accessibilityRole="header"
               style={[styles.emptyTitle, { color: colors.text }]}
             >
-              {active ? 'Your space to think.' : 'Load a model to chat'}
+              {lanStatus === 'hosting'
+                ? 'Hosting on local Wi-Fi'
+                : active
+                ? 'Your space to think.'
+                : 'Load a model to chat'}
             </Text>
             <Text style={[styles.emptyText, { color: colors.muted }]}>
-              {active
+              {lanStatus === 'hosting'
+                ? 'Stop hosting in Settings to chat on this phone.'
+                : lanStatus === 'remote'
+                ? 'Your messages and retrieved document passages are sent to the host phone over local Wi-Fi.'
+                : active
                 ? 'Ask a question, explore an idea, or start writing. This conversation stays on your device.'
                 : 'Download a supported model and load it to start a private, offline conversation.'}
             </Text>
-            {!active ? (
+            {!active && lanStatus !== 'hosting' ? (
               <Pressable
                 accessibilityRole="button"
                 onPress={onModels}
@@ -223,12 +233,20 @@ export function ChatView({
             </Text>
           </Pressable>
         ) : null}
-        {chat.sending || !active ? (
+        {chat.sending || !active || lanStatus ? (
           <Text
             accessibilityLiveRegion="polite"
             style={[styles.status, { color: colors.muted }]}
           >
-            {chat.sending ? 'Generating…' : 'No model loaded'}
+            {chat.sending
+              ? lanStatus === 'remote'
+                ? 'Host is generating…'
+                : 'Generating…'
+              : lanStatus === 'hosting'
+              ? 'Hosting · local chat paused'
+              : lanStatus === 'remote'
+              ? 'Local Wi-Fi · Remote inference'
+              : 'No model loaded'}
           </Text>
         ) : null}
       </View>

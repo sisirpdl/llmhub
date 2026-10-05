@@ -2,11 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import type {
-  LlamaContext,
-  TokenData,
-  RNLlamaOAICompatibleMessage,
-} from 'llama.rn';
+import type { TokenData, RNLlamaOAICompatibleMessage } from 'llama.rn';
+import type { ChatEngine } from '../lan/protocol';
 import { saveChatImage, removeChatImages } from './attachments';
 import {
   defaultsFor,
@@ -54,7 +51,7 @@ export function useChatController({
   onImagePickerStateChange,
   retrieve,
 }: {
-  context: LlamaContext | null;
+  context: ChatEngine | null;
   model: ModelManifest;
   vision: boolean;
   onGenerationStateChange?: (active: boolean) => void;

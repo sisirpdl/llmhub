@@ -13,6 +13,7 @@ import { useColorScheme } from 'react-native';
 import { useModelController, isVision } from './useModelController';
 import { useChatController } from '../chat/useChatController';
 import { darkColors, lightColors, type Appearance } from '../ui/theme';
+import { useLan } from '../lan/useLan';
 import { useDocumentIndex } from '../documents/useDocumentIndex';
 export type Route = 'chat' | 'models' | 'settings';
 export function useAppController() {
@@ -36,20 +37,39 @@ export function useAppController() {
   const models = useModelController({
     contextLengthFor: model => settings.forModel(model).contextLength,
   });
-  const { setNotice } = models;
+  const { setNotice, setGenerationActive } = models;
   useEffect(() => {
     if (settings.error) setNotice(settings.error);
   }, [settings.error, setNotice]);
-  const chat = useChatController({
+  const lan = useLan({
     context: models.context,
     model: models.model,
-    vision: isVision(models.model),
-    onGenerationStateChange: models.setGenerationActive,
     settings: settings.forModel(models.model),
     contextLength: models.loadedContextLength,
+    generationActive: models.generationActive,
+    setNotice,
+  });
+  const chatModel = lan.remote?.model || models.model;
+  const chat = useChatController({
+    context: lan.host ? null : lan.remote?.context || models.context,
+    model: chatModel,
+    vision: !lan.remote && isVision(models.model),
+    settings: lan.remote
+      ? {
+          ...settings.forModel(models.model),
+          maxTokens: Math.min(
+            settings.forModel(models.model).maxTokens,
+            Math.floor(lan.remote.contextLength / 2),
+          ),
+        }
+      : settings.forModel(models.model),
+    contextLength: lan.remote?.contextLength || models.loadedContextLength,
     onImagePickerStateChange: models.setExternalUIActive,
     retrieve: documents.retrieve,
   });
+  useEffect(() => {
+    setGenerationActive(chat.sending || Boolean(lan.host) || lan.serving);
+  }, [chat.sending, lan.host, lan.serving, setGenerationActive]);
   useEffect(() => {
     AsyncStorage.getItem('@llmhub/onboarding-complete')
       .then(value => setOnboarding(value === 'true'))
@@ -79,6 +99,10 @@ export function useAppController() {
     value: ModelSettings,
     systemPrompt: string,
   ) {
+    if (lan.host || lan.remote)
+      throw new Error(
+        'Disconnect LAN mode before changing local model settings.',
+      );
     if (chat.sending)
       throw new Error('Stop generation before applying settings.');
     const invalid = validateSettings(value);
@@ -104,7 +128,7 @@ export function useAppController() {
     chat.setSystemPrompt(systemPrompt);
   }
   async function switchModel(model: ModelManifest): Promise<boolean> {
-    if (chat.sending) return false;
+    if (chat.sending || lan.host || lan.remote || lan.pending) return false;
     if (!isVision(model) && (chat.hasImageHistory || chat.imageUri)) {
       const confirmed = await new Promise<boolean>(resolve =>
         Alert.alert(
@@ -174,6 +198,12 @@ export function useAppController() {
   }
   function requestImageAttachment() {
     if (chat.sending || transferBusy.current) return;
+    if (lan.remote || lan.host) {
+      setNotice(
+        'LAN mode supports text chat only. Disconnect to use a local vision model.',
+      );
+      return;
+    }
     const choose = (source: 'camera' | 'gallery') => {
       if (models.context && isVision(models.model)) chat.attachImage(source);
       else setVisionSetupVisible(true);
@@ -195,6 +225,8 @@ export function useAppController() {
     }
   }
   return {
+    lan,
+    chatModel,
     transfer,
     importChat: () => transferChat('import'),
     exportChat: () => transferChat('export'),

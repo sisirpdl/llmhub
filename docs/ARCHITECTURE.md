@@ -15,9 +15,10 @@ Bare React Native 0.86 with TypeScript, React 19.2.3, New Architecture enabled, 
 | Chat | `src/chat/useChatController.ts`, `promptBuilder.ts`, `attachments.ts` | Streamed responses, saved conversations/images, retrieval context and native message selection. |
 | Chat interchange | `src/chat/chatDocument.ts`, `conversationStore.ts`, `chatTransfer.ts` | Native OpenAI messages, v3 storage, legacy migration and portable JSON import/export. |
 | Local documents | `src/documents/documentStore.ts`, `documentIndex.ts`, `useDocumentIndex.ts` | PDF/Markdown/TXT import, cached page-aware chunks and chat-scoped keyword retrieval. |
+| LAN inference preview | `src/lan/`, `LanHttpModule.kt`, `LanHttp.mm` | Foreground authenticated hosting, manual client connection, native OpenAI text requests and lifecycle cancellation. |
 | Settings | `src/settings/modelSettings.ts`, `ModelSettingsSheet.tsx` | Validated model profiles and staged edits; system instruction belongs to a chat. |
 
-AsyncStorage stores conversation/settings/import metadata. GGUF files and retained image attachments live in private app storage. Discovery credentials remain in memory rather than persisted settings. All chat and load-smoke completions pass native OpenAI messages to llama.rn's embedded template formatter; the application does not serialize ChatML/text prompts. The v3 conversation store keeps `{ model, messages }` with UI metadata alongside it. System instructions live in system messages; images use typed content parts. JSON import/export uses the same payload. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md). Context selection still uses a character-based approximation; token-accurate budgeting remains planned.
+AsyncStorage stores conversation/settings/import metadata. GGUF files and retained image attachments live in private app storage. Discovery credentials remain in memory rather than persisted settings. Local/hosted chat and load-smoke completions pass native OpenAI messages to llama.rn's embedded template formatter; the application does not serialize ChatML/text prompts. The v3 conversation store keeps `{ model, messages }` with UI metadata alongside it. System instructions live in system messages; images use typed content parts. JSON import/export uses the same payload. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md). Context selection still uses a character-based approximation; token-accurate budgeting remains planned.
 
 Generation stops and contexts are released on backgrounding. Switching releases the old context before loading the replacement to avoid simultaneous allocations. A failed switch retains conversation data and must report the real loaded/unloaded state. Route changes alone should not force unnecessary reloads.
 
@@ -83,11 +84,11 @@ Start with single-peer transfer and interruption recovery. Multi-peer chunk sche
 
 ## LAN hosting
 
-An opt-in host exposes a documented OpenAI-compatible subset on the local network. Validate whether the pinned llama backend can host through app-owned native code or needs a separately integrated llama-server component; server support is not assumed from `llama.rn` completion support.
+The foreground LAN preview uses app-owned native socket transports (`LanHttpModule.kt` / `LanHttp.mm`) around the JS-owned loaded `llama.rn` context. It does not require a separately integrated llama-server. `src/lan/useLan.ts` owns explicit host/client lifecycle, authentication handoff, single-generation admission, and the remote chat adapter; `protocol.ts` validates the shared OpenAI message shape and sampling/context limits.
 
-Require explicit start/stop, paired client authentication, user-visible active clients, cancellation, resource limits and a secure channel. Discovery must not make an unauthenticated inference endpoint public. Default to foreground hosting until each platform's lifecycle constraints are proven. Do not fall back to LAN or cloud without consent.
+Manual pairing uses a new random bearer key each time hosting starts. The OpenAI-compatible subset exposes authenticated model listing and non-streaming text chat. Local chat/model changes are locked while hosting, and background/offload stops the listener. Incoming conversations are not persisted. The client uses the same chat storage and retrieval pipeline; retrieved passages enter its temporary reference context and are sent to the host.
 
-Local mode keeps inference content on the originating phone. LAN mode sends prompts and attachments to the selected host and returns responses; it stays on the LAN but is no longer “no data leaves your phone.” Explain that before connecting. Host retention/logging must be explicit and off by default for content.
+This preview uses plaintext local HTTP on trusted Wi-Fi; a bearer key is not a secure channel. TLS/pinned host identity, discovery, richer client visibility, streaming, multimodal requests, and reliable native/device lifecycle validation remain work before broader deployment. Local mode keeps inference on the originating phone; LAN mode explicitly sends messages/reference passages to the host. Never silently fall back to LAN or cloud. See [LAN_HOSTING.md](LAN_HOSTING.md) for the implemented subset and required device checks.
 
 ## Android shared runtime / iOS embedded SDK
 
