@@ -40,11 +40,13 @@ export function ModelCard({
   controller,
   colors,
   onChat,
+  onShare,
 }: {
   model: ModelManifest;
   controller: ModelController;
   colors: Colors;
   onChat: () => void;
+  onShare?: (model: ModelManifest) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const state = controller.states[model.id] || 'checking';
@@ -79,9 +81,11 @@ export function ModelCard({
       controller.load(model);
       return;
     }
-    if (isImported(model) && model.origin === 'local') {
+    if (isImported(model) && ['local', 'nearby'].includes(model.origin)) {
       controller.setNotice(
-        'The local file is missing. Add it again using Add local model.',
+        model.origin === 'nearby'
+          ? 'The received model is missing. Receive it again or add its local GGUF file.'
+          : 'The local file is missing. Add it again using Add local model.',
       );
       return;
     }
@@ -163,6 +167,15 @@ export function ModelCard({
             colors={colors}
             color={colors.accent}
             onPress={onChat}
+          />
+        ) : null}
+        {onShare && ['ready', 'active', 'load-failed'].includes(state) ? (
+          <IconButton
+            name="send"
+            label={`Share ${model.displayName} nearby`}
+            colors={colors}
+            disabled={controller.generationActive || anyWorking}
+            onPress={() => onShare(model)}
           />
         ) : null}
         {downloaded(state) || isImported(model) ? (
@@ -270,10 +283,14 @@ export function ModelCatalogView({
   colors,
   onDiscover,
   onChat,
+  onShare,
+  onReceive,
 }: {
   controller: ModelController;
   colors: Colors;
   onDiscover: () => void;
+  onShare?: (model: ModelManifest) => void;
+  onReceive?: () => void;
   onChat: () => void;
 }) {
   const yours = controller.catalog.filter(
@@ -303,6 +320,15 @@ export function ModelCatalogView({
             Your models
           </Text>
         </View>
+        {onReceive ? (
+          <Button
+            label="Receive model nearby"
+            icon="connected"
+            colors={colors}
+            disabled={controller.generationActive || controller.importing}
+            onPress={onReceive}
+          />
+        ) : null}
         {yours.map(model => (
           <ModelCard
             key={model.id}
@@ -310,6 +336,7 @@ export function ModelCatalogView({
             controller={controller}
             colors={colors}
             onChat={onChat}
+            onShare={onShare}
           />
         ))}
         {!yours.length ? (

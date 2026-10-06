@@ -15,6 +15,8 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		DD4444444444444444444401 /* ModelTransferFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4444444444444444444402 /* ModelTransferFiles.swift */; };
+		DD5555555555555555555501 /* ModelTransferFilesBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = DD5555555555555555555502 /* ModelTransferFilesBridge.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +34,8 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = LlmHub/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = LlmHub/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		DD4444444444444444444402 /* ModelTransferFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelTransferFiles.swift; path = LlmHub/ModelTransferFiles.swift; sourceTree = "<group>"; };
+		DD5555555555555555555502 /* ModelTransferFilesBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ModelTransferFilesBridge.mm; path = LlmHub/ModelTransferFilesBridge.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,6 +59,8 @@
 				DD1111111111111111111102 /* DeviceMemory.mm */,
 				DD2222222222222222222202 /* PdfText.mm */,
 				DD3333333333333333333302 /* LanHttp.mm */,
+				DD5555555555555555555502 /* ModelTransferFilesBridge.mm */,
+				DD4444444444444444444402 /* ModelTransferFiles.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -261,6 +267,8 @@
 				DD1111111111111111111101 /* DeviceMemory.mm in Sources */,
 				DD2222222222222222222201 /* PdfText.mm in Sources */,
 				DD3333333333333333333301 /* LanHttp.mm in Sources */,
+				DD5555555555555555555501 /* ModelTransferFilesBridge.mm in Sources */,
+				DD4444444444444444444401 /* ModelTransferFiles.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

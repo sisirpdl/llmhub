@@ -31,7 +31,7 @@ A RAM check is guidance, not a guarantee that a model can load. Unknown metadata
 
 1. **On-device RAG:** expand PDF/Markdown/TXT chat retrieval with OCR, local embeddings and navigable, validated citations. This is the first major differentiator after stabilizing the core; text PDF extraction and chat-scoped keyword retrieval are implemented; OCR and semantic retrieval remain planned.
 2. **Curated model hub:** plain-language recommendations, per-device fit checks, and benchmarks tied to exact model/chip configurations. Existing phone-focused discovery is the starting point.
-3. **P2P sharing:** distribute model files over local WiFi without internet, using platform-native discovery/transport, chunk verification, and final verification against a previously trusted upstream digest.
+3. **P2P sharing:** a foreground same-WiFi preview implements discovery, explicit pairing, encrypted bounded chunks, resume and final artifact verification. Native/device checks are pending. Publisher verification requires independently trusted receiver metadata; arbitrary peer models remain source-unverified. See [NEARBY_TRANSFER.md](NEARBY_TRANSFER.md).
 4. **LAN hosting:** one device explicitly hosts inference for other devices on the same WiFi through an OpenAI-compatible endpoint. A foreground text-only preview now provides manual address/key pairing and completed responses; native/device checks, secure transport, discovery, and streaming remain planned. This opt-in mode has a different privacy boundary; see [LAN_HOSTING.md](LAN_HOSTING.md).
 5. **Later multimodal and skills:** extend the existing vision preview toward validated vision/audio and offline tools for notes, reminders, and calendar use.
 
