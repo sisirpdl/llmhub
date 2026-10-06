@@ -10,16 +10,16 @@ import java.security.SecureRandom
 import java.util.concurrent.*
 
 /** Small bounded HTTP/1.1 transport. Inference remains in the JS-owned llama context. */
-class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
+class LanHttpModule(context: ReactApplicationContext, private val moduleName: String = "LanHttp") : ReactContextBaseJavaModule(context) {
   private val workers = Executors.newCachedThreadPool()
   private val timers = ScheduledThreadPoolExecutor(1).apply { setRemoveOnCancelPolicy(true) }
   @Volatile private var server: ServerSocket? = null
   private val peers = ConcurrentHashMap<String, Socket>()
   private val clients = ConcurrentHashMap<String, Socket>()
   @Volatile private var key = ""
-  override fun getName() = "LanHttp"
+  override fun getName() = moduleName
   private fun emit(name: String, value: WritableMap) {
-    reactApplicationContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit(name, value)
+    reactApplicationContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit(if (moduleName == "LanHttp") name else name.replace("Lan", "ModelTransfer"), value)
   }
   private fun privateIp(ip: String): Boolean {
     val p = ip.split('.').map { it.toIntOrNull() ?: -1 }
@@ -67,7 +67,12 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
   }
   @ReactMethod fun addListener(name: String) { }
   @ReactMethod fun removeListeners(count: Double) { }
-  @ReactMethod fun start(port: Double, promise: Promise) {
+  @ReactMethod fun start(port: Double, promise: Promise) = startServer(port, null, promise)
+  @ReactMethod fun startWithAuthorization(port: Double, authorization: String, promise: Promise) {
+    if (moduleName != "ModelTransferHttp" || !authorization.matches(Regex("[a-f0-9]{48}"))) { promise.reject("TRANSFER_KEY", "Invalid transfer authorization"); return }
+    startServer(port, authorization, promise)
+  }
+  private fun startServer(port: Double, authorization: String?, promise: Promise) {
     workers.execute {
       var started = false
       var listenerRef: ServerSocket? = null
@@ -80,7 +85,7 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
           ?: error("Connect this phone to Wi-Fi before hosting.")
         val listener = ServerSocket().apply { reuseAddress = true; bind(InetSocketAddress(address, port.toInt()), 4) }
         val bytes = ByteArray(24); SecureRandom().nextBytes(bytes)
-        key = bytes.joinToString("") { "%02x".format(it) }
+        key = authorization ?: bytes.joinToString("") { "%02x".format(it) }
         server = listener
         listenerRef = listener
         val sessionKey = key
@@ -157,6 +162,6 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
   override fun invalidate() {runCatching {server?.close()};peers.values.forEach {runCatching {it.close()}};clients.values.forEach {runCatching {it.close()}};workers.shutdownNow();timers.shutdownNow();super.invalidate()}
 }
 class LanHttpPackage : ReactPackage {
-  override fun createNativeModules(context: ReactApplicationContext): List<NativeModule> = listOf(LanHttpModule(context))
+  override fun createNativeModules(context: ReactApplicationContext): List<NativeModule> = listOf(LanHttpModule(context), LanHttpModule(context, "ModelTransferHttp"), ModelTransferFiles(context))
   override fun createViewManagers(context: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }

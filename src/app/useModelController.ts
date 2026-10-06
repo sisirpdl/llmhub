@@ -501,7 +501,18 @@ export function useModelController(options?: {
     externalUI.current = value;
     if (!value && !foreground.current) offload();
   }
+  async function registerReceived(item: ImportedModel) {
+    if (busy.current)
+      throw new Error('Another model operation is still running.');
+    await saveCustom([
+      ...customRef.current.filter(value => value.id !== item.id),
+      item,
+    ]);
+    setState(item.id, 'ready');
+    refreshStorage();
+  }
   return {
+    registerReceived,
     hfToken,
     setHfToken,
     loadedContextLength,

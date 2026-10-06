@@ -1,4 +1,4 @@
-import {hfAuthHeaders} from './hfAuth';
+import { hfAuthHeaders } from './hfAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNFS from 'react-native-fs';
 import RNBlobUtil from 'react-native-blob-util';
@@ -12,7 +12,7 @@ import {
 } from './modelStore';
 import { hubDownloadUrl, type HubDetails, type HubFile } from './huggingFace';
 export type ImportedModel = (ModelManifest | VisionManifest) & {
-  origin: 'huggingface' | 'remote' | 'local';
+  origin: 'huggingface' | 'remote' | 'local' | 'nearby';
   originalFileName: string;
   checksumVerified?: boolean;
   repositoryId?: string;
@@ -40,7 +40,7 @@ function isSafeImport(model: ImportedModel): boolean {
       typeof model.id === 'string' &&
       model.id.startsWith('import-') &&
       /^[a-z0-9-]+\.gguf$/i.test(model.fileName) &&
-      ['huggingface', 'remote', 'local'].includes(model.origin) &&
+      ['huggingface', 'remote', 'local', 'nearby'].includes(model.origin) &&
       typeof model.displayName === 'string' &&
       typeof model.originalFileName === 'string' &&
       typeof model.sha256 === 'string' &&

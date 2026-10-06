@@ -74,9 +74,9 @@ Plan native adapters: Android supported scheduled/foreground transfer mechanisms
 
 ## P2P sharing and trust
 
-Investigate iOS MultipeerConnectivity and Android Nearby Connections (or another validated local transport). Cross-platform discovery and wire interoperability are a required spike: choosing two platform APIs does not establish that they can communicate with each other. Prove iPhone ↔ Android transfer without internet before committing to that architecture.
+The foreground preview uses Android NSD / iOS Bonjour discovery and independent native local HTTP transports with app-level AES-GCM encryption. Shared Wi-Fi and IPv4 are required; manual pairing works without discovery. `src/nearby` owns versioned offers, pairing, bounded native chunks, partial-file recovery and imported-model registration. Native builds and physical iPhone ↔ Android interoperability remain unverified. See [NEARBY_TRANSFER.md](NEARBY_TRANSFER.md).
 
-Transfer a versioned artifact manifest, chunk map and bytes after explicit pairing/consent. Verify each chunk against the manifest to support resume, then hash the complete artifact before registration. Treat peer-supplied chunk hashes as corruption detection, not proof of provenance.
+Transfer a versioned artifact offer after explicit pairing and receiver acceptance. Authenticate each bounded chunk with AES-GCM and range/request associated data, retain complete chunks for resume, then verify every complete artifact against its offered SHA-256 before registration. A sender-provided digest establishes integrity, not provenance.
 
 For offline upstream verification, the receiver must already have a trusted digest for the exact repository revision/artifact, such as a vetted bundled manifest or previously authenticated upstream metadata. A stranger supplying both a file and its claimed hash cannot establish upstream authenticity. Without trusted metadata, label the provenance unverified; do not claim the file is provably legitimate. A matching hash proves artifact identity, not safety, accuracy or permission to redistribute. Check model licensing/gated-repository terms before sharing.
 

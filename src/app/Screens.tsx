@@ -21,6 +21,7 @@ import { Button, IconButton, Sheet } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
 import { formatBytes, type Colors } from '../ui/theme';
 import { HuggingFaceTokenSettings } from '../settings/HuggingFaceTokenSettings';
+import { NearbyTransferSheet } from '../nearby/NearbyTransferSheet';
 import { LanSettings } from '../lan/LanSettings';
 import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
@@ -49,6 +50,8 @@ export function ScreenContent({ app }: { app: AppController }) {
           colors={colors}
           onDiscover={() => app.setDiscoveryVisible(true)}
           onChat={() => app.setRoute('chat')}
+          onShare={app.nearby.send}
+          onReceive={app.nearby.openReceive}
         />
       ) : app.route === 'chat' ? (
         <ChatView
@@ -117,6 +120,11 @@ export function ScreenContent({ app }: { app: AppController }) {
           Save one JSON file with this conversation and its images.
         </Text>
       </Sheet>
+      <NearbyTransferSheet
+        transfer={app.nearby}
+        colors={colors}
+        models={models}
+      />
       <VisionSetupSheet app={app} />
       <ModelDiscovery
         visible={app.discoveryVisible}

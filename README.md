@@ -8,6 +8,10 @@ Download a built-in model, browse GGUF repositories on Hugging Face, or import a
 
 Load a model on one phone, start hosting in Settings, and connect from another phone on the same Wi-Fi using its address and access key. No model download is needed on the client. This foreground-only preview supports text chat with completed responses; LAN messages and retrieved document passages leave the client phone for the selected host over unencrypted local HTTP. Native builds and two-device tests remain pending. See [docs/LAN_HOSTING.md](docs/LAN_HOSTING.md) for setup, API scope, privacy, and validation.
 
+## Nearby model sharing (preview)
+
+Send an installed model to another phone on the same Wi-Fi from Models, then choose **Receive model nearby** on the other phone. Explicit pairing, encrypted chunks, resumable partial files and final verification are implemented; native builds and physical Android/iPhone interoperability tests remain pending. Vision models include their projector. No internet is required for the transfer. See [docs/NEARBY_TRANSFER.md](docs/NEARBY_TRANSFER.md).
+
 ## Native acceleration assets
 
 The optional Android `ggml-hexagon` binaries under `android/app/src/main/assets/ggml-hexagon/` are local build inputs and are intentionally excluded from the repository. Provide them separately on machines that build with Hexagon acceleration enabled. Builds without those binaries use the standard backend when supported by the installed `llama.rn` configuration.

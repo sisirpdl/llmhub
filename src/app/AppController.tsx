@@ -13,6 +13,7 @@ import { useColorScheme } from 'react-native';
 import { useModelController, isVision } from './useModelController';
 import { useChatController } from '../chat/useChatController';
 import { darkColors, lightColors, type Appearance } from '../ui/theme';
+import { useNearbyTransfer } from '../nearby/useNearbyTransfer';
 import { useLan } from '../lan/useLan';
 import { useDocumentIndex } from '../documents/useDocumentIndex';
 export type Route = 'chat' | 'models' | 'settings';
@@ -67,9 +68,23 @@ export function useAppController() {
     onImagePickerStateChange: models.setExternalUIActive,
     retrieve: documents.retrieve,
   });
+  const nearby = useNearbyTransfer(models);
   useEffect(() => {
-    setGenerationActive(chat.sending || Boolean(lan.host) || lan.serving);
-  }, [chat.sending, lan.host, lan.serving, setGenerationActive]);
+    setGenerationActive(
+      nearby.busy ||
+        nearby.working ||
+        chat.sending ||
+        Boolean(lan.host) ||
+        lan.serving,
+    );
+  }, [
+    nearby.busy,
+    nearby.working,
+    chat.sending,
+    lan.host,
+    lan.serving,
+    setGenerationActive,
+  ]);
   useEffect(() => {
     AsyncStorage.getItem('@llmhub/onboarding-complete')
       .then(value => setOnboarding(value === 'true'))
@@ -225,6 +240,7 @@ export function useAppController() {
     }
   }
   return {
+    nearby,
     lan,
     chatModel,
     transfer,

@@ -89,7 +89,8 @@ static void reply(int fd, NSInteger status, NSString *body) {
 }
 RCT_EXPORT_MODULE(LanHttp)
 + (BOOL)requiresMainQueueSetup { return NO; }
-- (NSArray<NSString *> *)supportedEvents { return @[@"LanRequest", @"LanStopped", @"LanCancelled"]; }
+- (NSString *)event:(NSString *)suffix { return [NSStringFromClass(self.class) isEqual:@"ModelTransferHttp"] ? [@"ModelTransfer" stringByAppendingString:suffix] : [@"Lan" stringByAppendingString:suffix]; }
+- (NSArray<NSString *> *)supportedEvents { return @[[self event:@"Request"], [self event:@"Stopped"], [self event:@"Cancelled"]]; }
 - (instancetype)init { if ((self = [super init])) { _listener = -1; _peers = [NSMutableDictionary new]; _clients = [NSMutableDictionary new]; _cancelledClients = [NSMutableSet new]; _readingPeers = [NSMutableSet new]; } return self; }
 - (void)endSession {
   @synchronized(self) {
@@ -102,6 +103,13 @@ RCT_EXPORT_MODULE(LanHttp)
   }
 }
 RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
+  [self startAtPort:port authorization:nil resolve:resolve reject:reject];
+}
+RCT_REMAP_METHOD(startWithAuthorization, startWithPort:(double)port authorization:(NSString *)authorization resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
+  if (![NSStringFromClass(self.class) isEqual:@"ModelTransferHttp"] || ![authorization rangeOfString:@"^[a-f0-9]{48}$" options:NSRegularExpressionSearch].length) { reject(@"TRANSFER_KEY", @"Invalid transfer authorization", nil); return; }
+  [self startAtPort:port authorization:authorization resolve:resolve reject:reject];
+}
+- (void)startAtPort:(double)port authorization:(NSString *)authorization resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   @synchronized(self) {
     if (_listener >= 0 || port < 1024 || port > 65535 || floor(port) != port) { reject(@"LAN_START", @"Already hosting or invalid port.", nil); return; }
     struct ifaddrs *interfaces = NULL; NSString *ip = nil;
@@ -119,8 +127,9 @@ RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)r
     struct sockaddr_in address = {}; address.sin_len = sizeof(address); address.sin_family = AF_INET; address.sin_port = htons((uint16_t)port); inet_pton(AF_INET, ip.UTF8String, &address.sin_addr);
     if (bind(fd, (struct sockaddr *)&address, sizeof(address)) != 0 || listen(fd, 4) != 0) { close(fd); reject(@"LAN_START", @"Cannot listen on this Wi-Fi address. Port 8080 may be in use.", nil); return; }
     _listener = fd;
-    unsigned char random[24]; arc4random_buf(random, sizeof(random)); NSMutableString *key = [NSMutableString new];
-    for (int i = 0; i < 24; i++) [key appendFormat:@"%02x", random[i]];
+    unsigned char random[24]; arc4random_buf(random, sizeof(random)); NSMutableString *randomKey = [NSMutableString new];
+    for (int i = 0; i < 24; i++) [randomKey appendFormat:@"%02x", random[i]];
+    NSString *key = authorization ?: randomKey;
     _key = key;
     NSString *session = NSUUID.UUID.UUIDString;
     resolve(@{@"url":[NSString stringWithFormat:@"http://%@:%d", ip, (int)port], @"token":key, @"session":session});
@@ -154,7 +163,7 @@ RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)r
             if (![http[@"headers"][@"authorization"] isEqual:[@"Bearer " stringByAppendingString:key]]) {
               reply(socket, 401, @"{\"error\":{\"message\":\"Access key required\"}}");
             } else {
-              [self sendEventWithName:@"LanRequest" body:@{@"id":identifier, @"session":session, @"method":parts[0], @"path":parts[1], @"body":http[@"body"]}];
+              [self sendEventWithName:[self event:@"Request"] body:@{@"id":identifier, @"session":session, @"method":parts[0], @"path":parts[1], @"body":http[@"body"]}];
               // A worker owns this descriptor until respond removes it, or timeout/stop.
               for (int i = 0; i < 1800; i++) {
                 @synchronized(self) {
@@ -167,10 +176,10 @@ RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)r
               }
             }
           } @catch (NSException *exception) {}
-          @synchronized(self) { [self->_readingPeers removeObject:identifier]; if (self->_peers[identifier]) { [self->_peers removeObjectForKey:identifier]; close(socket); if (cancelled) [self sendEventWithName:@"LanCancelled" body:@{@"id":identifier}]; } }
+          @synchronized(self) { [self->_readingPeers removeObject:identifier]; if (self->_peers[identifier]) { [self->_peers removeObjectForKey:identifier]; close(socket); if (cancelled) [self sendEventWithName:[self event:@"Cancelled"] body:@{@"id":identifier}]; } }
         });
       }
-      @synchronized(self) { if ([self->_key isEqual:key]) { close(fd); self->_listener = -1; [self sendEventWithName:@"LanStopped" body:@{@"session":session}]; } }
+      @synchronized(self) { if ([self->_key isEqual:key]) { close(fd); self->_listener = -1; [self sendEventWithName:[self event:@"Stopped"] body:@{@"session":session}]; } }
     });
   }
 }
@@ -219,4 +228,11 @@ RCT_REMAP_METHOD(request, requestID:(NSString *)identifier url:(NSString *)url t
 }
 RCT_EXPORT_METHOD(cancel:(NSString *)identifier) { @synchronized(self) { NSNumber *fd = _clients[identifier]; if (fd) { [_cancelledClients addObject:identifier]; shutdown(fd.intValue, SHUT_RDWR); } } }
 - (void)invalidate { [self endSession]; [super invalidate]; }
+@end
+
+// Independent transport instance; inherited exported methods are registered by React Native.
+@interface ModelTransferHttp : LanHttp
+@end
+@implementation ModelTransferHttp
+RCT_EXPORT_MODULE(ModelTransferHttp)
 @end
