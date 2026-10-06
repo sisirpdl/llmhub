@@ -392,7 +392,7 @@ export function LanSettings({ app }: { app: AppController }) {
                 placeholderTextColor={colors.muted}
                 value={key}
                 onChangeText={value => {
-                  setKey(value);
+                  setKey(value.trim());
                   lan.clearError();
                 }}
                 secureTextEntry={!showClientKey}
@@ -400,7 +400,7 @@ export function LanSettings({ app }: { app: AppController }) {
                 autoCorrect={false}
                 autoComplete="off"
                 spellCheck={false}
-                maxLength={48}
+                maxLength={64}
                 editable={!disabled}
                 style={[styles.keyInput, { color: colors.text }]}
               />
