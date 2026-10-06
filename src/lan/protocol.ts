@@ -143,3 +143,16 @@ export function modelFromResponse(value: unknown): {
     contextLength: item.context_length,
   };
 }
+/** Parse only the two connection fields; never persist or retain the pasted text. */
+export function pairingDetails(value: string): {
+  address: string;
+  key: string;
+} {
+  const address = value.match(/(?:^|\n)\s*(http:\/\/[^\s]+)\s*(?:\n|$)/)?.[1];
+  const key = value.match(
+    /(?:^|\n)\s*Access key:\s*([a-f0-9]{48})\s*(?:\n|$)/,
+  )?.[1];
+  if (!address || !key)
+    throw new Error('Paste the host’s shared address and access key together.');
+  return { address: lanAddress(address), key: accessKey(key) };
+}

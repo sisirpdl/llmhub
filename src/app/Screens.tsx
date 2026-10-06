@@ -55,6 +55,9 @@ export function ScreenContent({ app }: { app: AppController }) {
           lanStatus={
             app.lan.remote ? 'remote' : app.lan.host ? 'hosting' : undefined
           }
+          lanConnectionIssue={Boolean(
+            app.lan.remote && app.lan.remoteStatus === 'unreachable',
+          )}
           chat={chat}
           colors={colors}
           active={
@@ -72,7 +75,11 @@ export function ScreenContent({ app }: { app: AppController }) {
           }
           settingsVisible={app.chatSettingsVisible}
           onCloseSettings={() => app.setChatSettingsVisible(false)}
-          onSettings={() => app.setChatSettingsVisible(true)}
+          onSettings={() =>
+            app.lan.remote || app.lan.host
+              ? app.setRoute('settings')
+              : app.setChatSettingsVisible(true)
+          }
           onAttachImage={app.requestImageAttachment}
           onDocuments={() => app.setDocumentsVisible(true)}
         />
@@ -315,11 +322,15 @@ function SettingsScreen({ app }: { app: AppController }) {
         ]}
       >
         <Text style={[styles.paragraph, { color: colors.muted }]}>
-          Adjust generation settings for {app.models.model.displayName}.
-          Instructions are saved with the current chat.
+          {app.lan.remote
+            ? 'The host supplies generation settings in LAN mode. Disconnect to adjust this phone’s model.'
+            : app.lan.host
+            ? 'Stop hosting before changing model settings.'
+            : `Adjust generation settings for ${app.models.model.displayName}. Instructions are saved with the current chat.`}
         </Text>
         <Button
           label="Model settings"
+          disabled={Boolean(app.lan.remote || app.lan.host || app.lan.pending)}
           icon="sliders"
           colors={colors}
           onPress={() => app.setChatSettingsVisible(true)}
