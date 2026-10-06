@@ -254,6 +254,8 @@ test('cancels a remote request when stopping generation', async () => {
     await engine.stopCompletion();
   });
   expect(await work).toBe('Cancelled');
+  expect(lan.remoteStatus).toBe('ready');
+  expect(lan.error).toBe('');
   expect(mockNative.cancel).toHaveBeenCalled();
 });
 test('lists the hosted model and cancels only the matching active request', async () => {
@@ -370,4 +372,140 @@ test('rejects requests queued from a previous native host session', async () => 
     expect.any(String),
   );
   expect(context.completion).not.toHaveBeenCalled();
+});
+test('an old client adapter cannot send after disconnecting', async () => {
+  await act(async () => {
+    await lan.connect('http://192.168.1.2:8080', 'a'.repeat(48));
+  });
+  const engine = lan.remote!.context;
+  await act(async () => {
+    await lan.stop();
+  });
+  await expect(
+    engine.completion({ messages: [{ role: 'user', content: 'stale' }] }),
+  ).rejects.toThrow(/connection has ended/);
+  expect(mockNative.request).toHaveBeenCalledTimes(1);
+});
+test('stopping an old adapter does not cancel a new connection check', async () => {
+  await act(async () => {
+    await lan.connect('http://192.168.1.2:8080', 'a'.repeat(48));
+  });
+  const old = lan.remote!.context;
+  await act(async () => {
+    await lan.stop();
+    await lan.connect('http://192.168.1.2:8080', 'a'.repeat(48));
+  });
+  let finish!: (value: any) => void;
+  mockNative.request.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  );
+  let probe!: Promise<boolean>;
+  await act(async () => {
+    probe = lan.checkConnection();
+  });
+  await act(async () => {
+    await old.stopCompletion();
+  });
+  expect(mockNative.cancel).not.toHaveBeenCalled();
+  await act(async () => {
+    finish({
+      status: 200,
+      body: JSON.stringify({
+        data: [{ id: 'remote-qwen', context_length: 2048 }],
+      }),
+    });
+    await probe;
+  });
+  expect(lan.remoteStatus).toBe('ready');
+});
+test('connection cancellation reports failure rather than a successful pairing', async () => {
+  let finish!: (value: any) => void;
+  mockNative.request.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  );
+  let connect!: Promise<boolean>;
+  await act(async () => {
+    connect = lan.connect('http://192.168.1.2:8080', 'a'.repeat(48));
+  });
+  expect(lan.activity).toBe('connecting');
+  await act(async () => {
+    await lan.stop();
+  });
+  await act(async () => {
+    finish({
+      status: 200,
+      body: JSON.stringify({
+        data: [{ id: 'remote-qwen', context_length: 2048 }],
+      }),
+    });
+  });
+  expect(await connect).toBe(false);
+  expect(lan.remote).toBeNull();
+  expect(lan.error).toBe('');
+});
+test('a late native stopped event cannot stop a new host session', async () => {
+  await act(async () => {
+    await lan.start();
+    await mockListeners.LanStopped({ session: 'old-session' });
+  });
+  expect(lan.host?.session).toBe('session1');
+  await act(async () => {
+    await mockListeners.LanStopped({ session: 'session1' });
+  });
+  expect(lan.host).toBeNull();
+});
+test('transport failures can be checked and recovered without silently changing inference mode', async () => {
+  await act(async () => {
+    await lan.connect('http://192.168.1.2:8080', 'a'.repeat(48));
+  });
+  mockNative.request.mockRejectedValueOnce(new Error('Wi-Fi lost'));
+  await act(async () => {
+    await lan
+      .remote!.context.completion({
+        messages: [{ role: 'user', content: 'Hi' }],
+      })
+      .catch(() => {});
+  });
+  expect(lan.remoteStatus).toBe('unreachable');
+  expect(lan.remote).not.toBeNull();
+  expect(lan.error).toBe('Wi-Fi lost');
+  await act(async () => {
+    expect(await lan.checkConnection()).toBe(true);
+  });
+  expect(lan.remoteStatus).toBe('ready');
+  expect(lan.error).toBe('');
+});
+test('busy host replies do not mark the connection unreachable', async () => {
+  await act(async () => {
+    await lan.connect('http://192.168.1.2:8080', 'a'.repeat(48));
+  });
+  mockNative.request.mockResolvedValueOnce({
+    status: 409,
+    body: JSON.stringify({ error: { message: 'Host busy' } }),
+  });
+  await act(async () => {
+    await lan
+      .remote!.context.completion({
+        messages: [{ role: 'user', content: 'Hi' }],
+      })
+      .catch(() => {});
+  });
+  expect(lan.remoteStatus).toBe('ready');
+  expect(lan.error).toBe('');
+});
+test('validation errors stay in LAN settings and do not use the global banner', async () => {
+  await act(async () => {
+    expect(await lan.connect('http://8.8.8.8:8080', 'a'.repeat(48))).toBe(
+      false,
+    );
+  });
+  expect(lan.error).toMatch(/private/);
+  expect(notice).not.toHaveBeenCalled();
+  expect(mockNative.request).not.toHaveBeenCalled();
 });

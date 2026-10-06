@@ -84,17 +84,20 @@ static void reply(int fd, NSInteger status, NSString *body) {
   NSString *_key;
   NSMutableDictionary<NSString *, NSNumber *> *_peers;
   NSMutableDictionary<NSString *, NSNumber *> *_clients;
+  NSMutableSet<NSString *> *_cancelledClients;
+  NSMutableSet<NSString *> *_readingPeers;
 }
 RCT_EXPORT_MODULE(LanHttp)
 + (BOOL)requiresMainQueueSetup { return NO; }
 - (NSArray<NSString *> *)supportedEvents { return @[@"LanRequest", @"LanStopped", @"LanCancelled"]; }
-- (instancetype)init { if ((self = [super init])) { _listener = -1; _peers = [NSMutableDictionary new]; _clients = [NSMutableDictionary new]; } return self; }
+- (instancetype)init { if ((self = [super init])) { _listener = -1; _peers = [NSMutableDictionary new]; _clients = [NSMutableDictionary new]; _cancelledClients = [NSMutableSet new]; _readingPeers = [NSMutableSet new]; } return self; }
 - (void)endSession {
   @synchronized(self) {
     if (_listener >= 0) { shutdown(_listener, SHUT_RDWR); close(_listener); _listener = -1; }
     _key = nil;
     // Workers own close(); shutdown wakes pending reads without descriptor reuse races.
     for (NSNumber *fd in _peers.allValues) shutdown(fd.intValue, SHUT_RDWR);
+    [_cancelledClients addObjectsFromArray:_clients.allKeys];
     for (NSNumber *fd in _clients.allValues) shutdown(fd.intValue, SHUT_RDWR);
   }
 }
@@ -113,7 +116,7 @@ RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)r
     }
     if (!ip) { reject(@"LAN_START", @"Connect this phone to Wi-Fi before hosting.", nil); return; }
     int fd = newSocket(); int yes = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-    struct sockaddr_in address = {}; address.sin_family = AF_INET; address.sin_port = htons((uint16_t)port); inet_pton(AF_INET, ip.UTF8String, &address.sin_addr);
+    struct sockaddr_in address = {}; address.sin_len = sizeof(address); address.sin_family = AF_INET; address.sin_port = htons((uint16_t)port); inet_pton(AF_INET, ip.UTF8String, &address.sin_addr);
     if (bind(fd, (struct sockaddr *)&address, sizeof(address)) != 0 || listen(fd, 4) != 0) { close(fd); reject(@"LAN_START", @"Cannot listen on this Wi-Fi address. Port 8080 may be in use.", nil); return; }
     _listener = fd;
     unsigned char random[24]; arc4random_buf(random, sizeof(random)); NSMutableString *key = [NSMutableString new];
@@ -130,14 +133,23 @@ RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)r
         @synchronized(self) {
           if (![self->_key isEqual:key] || self->_peers.count >= 4) { close(socket); continue; }
           self->_peers[identifier] = @(socket);
+          [self->_readingPeers addObject:identifier];
         }
+        __weak LanHttp *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+          LanHttp *module = weakSelf;
+          if (!module) return;
+          @synchronized(module) { if ([module->_readingPeers containsObject:identifier] && module->_peers[identifier]) shutdown(socket, SHUT_RDWR); }
+        });
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
           BOOL cancelled = NO;
           @try {
             int yes = 1; setsockopt(socket, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes));
             struct timeval timeout = {10, 0}; setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
             setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-            NSDictionary *http = readHTTP(socket); NSArray *parts = [http[@"first"] componentsSeparatedByString:@" "];
+            NSDictionary *http = readHTTP(socket);
+            @synchronized(self) { [self->_readingPeers removeObject:identifier]; }
+            NSArray *parts = [http[@"first"] componentsSeparatedByString:@" "];
             if (parts.count != 3 || ![parts[2] isEqual:@"HTTP/1.1"]) @throw [NSException exceptionWithName:@"LAN" reason:@"Invalid request" userInfo:nil];
             if (![http[@"headers"][@"authorization"] isEqual:[@"Bearer " stringByAppendingString:key]]) {
               reply(socket, 401, @"{\"error\":{\"message\":\"Access key required\"}}");
@@ -155,10 +167,10 @@ RCT_REMAP_METHOD(start, startPort:(double)port resolve:(RCTPromiseResolveBlock)r
               }
             }
           } @catch (NSException *exception) {}
-          @synchronized(self) { if (self->_peers[identifier]) { [self->_peers removeObjectForKey:identifier]; close(socket); if (cancelled) [self sendEventWithName:@"LanCancelled" body:@{@"id":identifier}]; } }
+          @synchronized(self) { [self->_readingPeers removeObject:identifier]; if (self->_peers[identifier]) { [self->_peers removeObjectForKey:identifier]; close(socket); if (cancelled) [self sendEventWithName:@"LanCancelled" body:@{@"id":identifier}]; } }
         });
       }
-      @synchronized(self) { if ([self->_key isEqual:key]) { close(fd); self->_listener = -1; [self sendEventWithName:@"LanStopped" body:@{}]; } }
+      @synchronized(self) { if ([self->_key isEqual:key]) { close(fd); self->_listener = -1; [self sendEventWithName:@"LanStopped" body:@{@"session":session}]; } }
     });
   }
 }
@@ -176,25 +188,35 @@ RCT_REMAP_METHOD(request, requestID:(NSString *)identifier url:(NSString *)url t
   NSData *bytes = [body dataUsingEncoding:NSUTF8StringEncoding];
   if (![parsed.scheme isEqual:@"http"] || !privateIP(parsed.host) || parsed.user || parsed.password || parsed.port.intValue < 1024 || parsed.port.intValue > 65535 || ![@[@"GET", @"POST"] containsObject:method] || ![regex numberOfMatchesInString:token options:0 range:NSMakeRange(0, token.length)] || bytes.length > 1048576) { reject(@"LAN_REQUEST", @"Invalid private LAN address, key, or request.", nil); return; }
   int fd = newSocket(); @synchronized(self) { _clients[identifier] = @(fd); }
+  NSNumber *handle = @(fd);
+  __weak LanHttp *weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 180 * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    LanHttp *module = weakSelf;
+    if (!module) return;
+    @synchronized(module) { if ([module->_clients[identifier] isEqual:handle]) { [module->_cancelledClients addObject:identifier]; shutdown(fd, SHUT_RDWR); } }
+  });
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     @try {
-      struct sockaddr_in address = {}; address.sin_family = AF_INET; address.sin_port = htons(parsed.port.intValue); inet_pton(AF_INET, parsed.host.UTF8String, &address.sin_addr);
+      @synchronized(self) { if ([self->_cancelledClients containsObject:identifier]) @throw [NSException exceptionWithName:@"LAN" reason:@"Cancelled" userInfo:nil]; }
+      struct sockaddr_in address = {}; address.sin_len = sizeof(address); address.sin_family = AF_INET; address.sin_port = htons(parsed.port.intValue); inet_pton(AF_INET, parsed.host.UTF8String, &address.sin_addr);
       fcntl(fd, F_SETFL, O_NONBLOCK);
       int result = connect(fd, (struct sockaddr *)&address, sizeof(address));
       if (result != 0) {
         struct pollfd item = {fd, POLLOUT, 0}; int error = 0; socklen_t length = sizeof(error);
         if (poll(&item, 1, 5000) <= 0 || getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) != 0 || error != 0) @throw [NSException exceptionWithName:@"LAN" reason:@"Connection failed" userInfo:nil];
       }
+      @synchronized(self) { if ([self->_cancelledClients containsObject:identifier]) @throw [NSException exceptionWithName:@"LAN" reason:@"Cancelled" userInfo:nil]; }
       fcntl(fd, F_SETFL, 0);
       NSString *header = [NSString stringWithFormat:@"%@ %@ HTTP/1.1\r\nHost: %@:%@\r\nAuthorization: Bearer %@\r\nContent-Type: application/json\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n", method, parsed.path, parsed.host, parsed.port, token, (unsigned long)bytes.length];
       writeBytes(fd, [header dataUsingEncoding:NSUTF8StringEncoding]); writeBytes(fd, bytes);
       NSDictionary *response = readHTTP(fd); NSArray *parts = [response[@"first"] componentsSeparatedByString:@" "];
       if (parts.count < 2) @throw [NSException exceptionWithName:@"LAN" reason:@"Invalid response" userInfo:nil];
+      @synchronized(self) { if ([self->_cancelledClients containsObject:identifier]) @throw [NSException exceptionWithName:@"LAN" reason:@"Cancelled" userInfo:nil]; }
       resolve(@{@"status":@([parts[1] integerValue]), @"body":response[@"body"]});
     } @catch (NSException *exception) { reject(@"LAN_REQUEST", @"LAN request failed. Check Wi-Fi, address, access key, local network permission, and that the host is open.", nil); }
-    @synchronized(self) { [self->_clients removeObjectForKey:identifier]; close(fd); }
+    @synchronized(self) { [self->_clients removeObjectForKey:identifier]; [self->_cancelledClients removeObject:identifier]; close(fd); }
   });
 }
-RCT_EXPORT_METHOD(cancel:(NSString *)identifier) { @synchronized(self) { NSNumber *fd = _clients[identifier]; if (fd) shutdown(fd.intValue, SHUT_RDWR); } }
+RCT_EXPORT_METHOD(cancel:(NSString *)identifier) { @synchronized(self) { NSNumber *fd = _clients[identifier]; if (fd) { [_cancelledClients addObject:identifier]; shutdown(fd.intValue, SHUT_RDWR); } } }
 - (void)invalidate { [self endSession]; [super invalidate]; }
 @end

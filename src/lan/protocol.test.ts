@@ -100,3 +100,16 @@ test('requires a compatible host model listing', () => {
   ).toEqual({ id: 'qwen', name: 'Qwen', contextLength: 2048 });
   expect(() => modelFromResponse({ data: [{ id: 'qwen' }] })).toThrow();
 });
+test('fills pairing fields from shared details without accepting public endpoints', () => {
+  const { pairingDetails } = require('./protocol');
+  const key = 'a'.repeat(48);
+  expect(
+    pairingDetails(
+      `LLMHub LAN host\nhttp://192.168.1.2:8080\nAccess key: ${key}\nKeep this key private.`,
+    ),
+  ).toEqual({ address: 'http://192.168.1.2:8080', key });
+  expect(() =>
+    pairingDetails(`http://8.8.8.8:8080\nAccess key: ${key}`),
+  ).toThrow();
+  expect(() => pairingDetails('http://192.168.1.2:8080')).toThrow();
+});

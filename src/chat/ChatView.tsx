@@ -28,6 +28,7 @@ export function ChatView({
   onAttachImage,
   onDocuments,
   lanStatus,
+  lanConnectionIssue,
 }: {
   chat: ChatController;
   colors: Colors;
@@ -41,6 +42,7 @@ export function ChatView({
   onAttachImage?: () => void;
   onDocuments?: () => void;
   lanStatus?: 'remote' | 'hosting';
+  lanConnectionIssue?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
@@ -236,7 +238,17 @@ export function ChatView({
         {chat.sending || !active || lanStatus ? (
           <Text
             accessibilityLiveRegion="polite"
-            style={[styles.status, { color: colors.muted }]}
+            accessibilityRole={lanConnectionIssue ? 'button' : undefined}
+            accessibilityLabel={
+              lanConnectionIssue
+                ? 'Host unavailable. Open LAN settings'
+                : undefined
+            }
+            onPress={lanConnectionIssue ? onSettings : undefined}
+            style={[
+              styles.status,
+              { color: lanConnectionIssue ? colors.danger : colors.muted },
+            ]}
           >
             {chat.sending
               ? lanStatus === 'remote'
@@ -244,6 +256,8 @@ export function ChatView({
                 : 'Generating…'
               : lanStatus === 'hosting'
               ? 'Hosting · local chat paused'
+              : lanConnectionIssue
+              ? 'Host unavailable · Check Settings'
               : lanStatus === 'remote'
               ? 'Local Wi-Fi · Remote inference'
               : 'No model loaded'}

@@ -6,10 +6,12 @@ One LLMHub phone runs a loaded model; another LLMHub phone connects over the sam
 
 1. Rebuild both apps after applying the patch. Android registers `LanHttpPackage`; iOS includes `LanHttp.mm` and a Local Network permission description. A JavaScript reload alone cannot install the native transport.
 2. Connect both phones to the same trusted Wi-Fi. Guest networks and access-point client isolation may block phone-to-phone connections. Internet access is unnecessary once the host model is downloaded.
-3. On the host, load a model in **Models**, then open **Settings → Local Wi-Fi → Host loaded model**. The server binds the Wi-Fi IPv4 address on port 8080. Local chat and model changes are paused while hosting.
-4. Use **Show access key** to copy the displayed address and key to the other phone. The key is selectable text and is kept in memory. Sharing within a system sheet is supported, but switching to another app or locking/backgrounding the host stops hosting and invalidates its key. Restart hosting and use the new key if that happens.
-5. On the client, enter the address and key in the same Settings section, tap **Connect to host**, then **Open LAN chat**. No local model is required. Chat history, JSON import/export, and connected local documents continue to work.
+3. On the host, load a model in **Models**, then open **Settings → Local Wi-Fi → Start hosting**. The server binds the Wi-Fi IPv4 address on port 8080. Local chat and model changes are paused while hosting.
+4. Use **Show access key** to copy the displayed address and key to the other phone. The key is selectable text, hidden by default, and kept in memory. A new session hides it again even if the previous key was revealed. Sharing within a system sheet is supported, but switching to another app or locking/backgrounding the host stops hosting and invalidates its key. Restart hosting and use the new key if that happens.
+5. On the client, enter the address and masked key in the Connect card, or use **Paste shared connection details → Fill connection fields**, tap **Connect to host**, then **Open LAN chat**. Connection errors appear inline; failed attempts keep the entered key for retry. A successful connection clears key/paste drafts. Cancel can stop a pending connection. No local model is required. Chat history, JSON import/export, and connected local documents continue to work.
 6. Keep both apps in the foreground. **Disconnect** returns the client to local mode; **Stop hosting** frees the host for local chat. A background transition disconnects LAN mode. A loaded local model may also need to be loaded again after backgrounding under the existing memory policy.
+
+**Check connection** probes the currently paired host without changing inference mode. If the connection needs attention, the chat status opens LAN Settings. Transport/authentication failures are distinguished from a busy host or invalid request. After a host restart, disconnect and pair with its new key. Old adapters and delayed native events cannot act on a replacement session.
 
 On iOS, allow Local Network access if requested. A denied permission, an occupied host port, Wi-Fi changes, or an unreachable host produces an actionable error. After changing Wi-Fi, restart hosting and reconnect with its current address and key. IPv6, hostnames, hotspot interface detection, automatic discovery, and background hosting are not included.
 
@@ -32,7 +34,7 @@ Messages use string content with system/developer/user/assistant roles. They sta
 
 Optional sampling parameters: `max_tokens`, `temperature`, `top_p`, and `seed`. Defaults are snapshotted from host settings when hosting starts. Other sampling controls remain host-owned. `stream: true`, images/typed content parts, tools, and structured output are rejected explicitly. Replies contain `choices[0].message.content`; no token streaming is available in this preview.
 
-One inference runs at a time; another completion receives HTTP 409 rather than queueing. The transport admits at most four concurrent inbound sockets, limits headers to 16 KiB and bodies to 1 MiB, bounds reads, and closes unhandled requests after three minutes. Generation is stopped after 150 seconds. Client cancellation closes its request socket; native disconnect events stop the matching host generation. Host Stop/background/model offload closes the listener and cancels inference. Cancellation timing and lifecycle require physical-device verification.
+One inference runs at a time; another completion receives HTTP 409 rather than queueing. The transport admits at most four concurrent inbound sockets, limits headers to 16 KiB and bodies to 1 MiB, enforces a 10-second total request-header/body read deadline and a three-minute total client request deadline, and closes unhandled requests after three minutes. Generation is stopped after 150 seconds. Client cancellation closes its request socket; native disconnect events stop the matching host generation. Host Stop/background/model offload closes the listener and cancels inference. Cancellation timing and lifecycle require physical-device verification.
 
 Prompt preparation applies the host context budget and can omit older messages, as local chat does. An oversized newest turn is rejected. The full stored conversation remains unchanged.
 
@@ -52,7 +54,7 @@ This is an app-owned HTTP transport around `llama.rn` completion, not the full s
 
 ## Validation
 
-The current change passes TypeScript, ESLint, and 181 Jest tests across 27 suites. Android and iOS production JavaScript bundles also pass. JavaScript tests cover address/key validation, request shape and limits, OpenAI responses, concurrent inference rejection, connection without a local model, client cancellation, background/start races, and model offload. These tests mock the native socket transport.
+The current change passes TypeScript, ESLint, and 192 Jest tests across 28 suites. Android and iOS production JavaScript bundles also pass. JavaScript tests cover address/key validation, request shape and limits, OpenAI responses, concurrent inference rejection, connection without a local model, client cancellation, background/start races, model offload, old-adapter isolation, cancelled pairing results, connection recovery, pasted details, retry key retention, and hiding keys after session changes. These tests mock the native socket transport.
 
 Native builds and two-device behavior have **not been verified in this Linux workspace**. Before treating LAN mode as ready, record these checks on Android ARM64 and iPhone:
 

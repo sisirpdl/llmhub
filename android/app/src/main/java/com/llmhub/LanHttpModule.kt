@@ -12,7 +12,7 @@ import java.util.concurrent.*
 /** Small bounded HTTP/1.1 transport. Inference remains in the JS-owned llama context. */
 class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
   private val workers = Executors.newCachedThreadPool()
-  private val timers = Executors.newSingleThreadScheduledExecutor()
+  private val timers = ScheduledThreadPoolExecutor(1).apply { setRemoveOnCancelPolicy(true) }
   @Volatile private var server: ServerSocket? = null
   private val peers = ConcurrentHashMap<String, Socket>()
   private val clients = ConcurrentHashMap<String, Socket>()
@@ -71,6 +71,7 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
     workers.execute {
       var started = false
       var listenerRef: ServerSocket? = null
+      var sessionId = ""
       try {
         require(server == null) { "Already hosting" }
         require(port == port.toInt().toDouble() && port in 1024.0..65535.0)
@@ -83,7 +84,7 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
         server = listener
         listenerRef = listener
         val sessionKey = key
-        val sessionId = java.util.UUID.randomUUID().toString()
+        sessionId = java.util.UUID.randomUUID().toString()
         started = true
         promise.resolve(Arguments.createMap().apply {putString("url", "http://${address.hostAddress}:${listener.localPort}");putString("token", key);putString("session", sessionId)})
         while (!listener.isClosed) {
@@ -92,16 +93,18 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
           val id = java.util.UUID.randomUUID().toString()
           peers[id] = socket
           workers.execute connection@ {
+            var deadline: ScheduledFuture<*> = timers.schedule(Runnable { runCatching { socket.close() } }, 10, TimeUnit.SECONDS)
             try {
               socket.soTimeout = 10000
               val input = BufferedInputStream(socket.getInputStream())
               val (first, headers, body) = read(input)
+              deadline.cancel(false)
               val parts = first.split(' ')
               require(parts.size == 3 && parts[2] == "HTTP/1.1")
               if (headers["authorization"] != "Bearer $sessionKey") {reply(socket,401,"{\"error\":{\"message\":\"Access key required\"}}");peers.remove(id);socket.close();return@connection}
               emit("LanRequest", Arguments.createMap().apply {putString("id",id);putString("session",sessionId);putString("method",parts[0]);putString("path",parts[1]);putString("body",body)})
               // Bound inference lifetime even if JS no longer handles requests.
-              timers.schedule({ peers.remove(id)?.let { runCatching { it.close() } } }, 180, TimeUnit.SECONDS)
+              deadline = timers.schedule(Runnable { peers.remove(id)?.let { runCatching { it.close() }; emit("LanCancelled", Arguments.createMap().apply { putString("id", id) }) } }, 180, TimeUnit.SECONDS)
               socket.soTimeout = 180000
               input.read() // EOF when the requesting device cancels/disconnects.
               if (peers.remove(id) != null) {
@@ -113,12 +116,12 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
                 emit("LanCancelled", Arguments.createMap().apply { putString("id", id) })
                 runCatching { socket.close() }
               }
-            }
+            } finally { deadline.cancel(false) }
           }
         }
       } catch (error: Exception) {
         if (!started) promise.reject("LAN_START", error.message, error)
-        else if (server === listenerRef) {server = null; emit("LanStopped", Arguments.createMap())}
+        else if (server === listenerRef) {server = null; emit("LanStopped", Arguments.createMap().apply { putString("session", sessionId) })}
         runCatching { listenerRef?.close() }
       }
     }
@@ -134,6 +137,7 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
   @ReactMethod fun request(id: String, url: String, token: String, method: String, body: String, promise: Promise) {
     val socket = Socket();clients[id] = socket
     workers.execute {
+      val deadline = timers.schedule(Runnable { runCatching { socket.close() } }, 180, TimeUnit.SECONDS)
       try {
         val uri = URI(url)
         require(uri.scheme == "http" && privateIp(uri.host ?: "") && uri.userInfo == null && uri.port in 1024..65535 && (method == "GET" || method == "POST")) {"Use a private IPv4 LAN address and port."}
@@ -146,7 +150,7 @@ class LanHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModu
         val (first, _, response) = read(BufferedInputStream(socket.getInputStream()))
         promise.resolve(Arguments.createMap().apply {putInt("status",first.split(' ')[1].toInt());putString("body",response)})
       } catch (error: Exception) {promise.reject("LAN_REQUEST", "LAN request failed. Check Wi-Fi, address, access key, and that the host is open.", error)}
-      finally {clients.remove(id);socket.close()}
+      finally {deadline.cancel(false);clients.remove(id);socket.close()}
     }
   }
   @ReactMethod fun cancel(id: String) {runCatching {clients.remove(id)?.close()}}
