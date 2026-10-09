@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, NativeEventEmitter } from 'react-native';
+import { AppState, NativeEventEmitter, NativeModules } from 'react-native';
 import type { ModelController } from '../app/useModelController';
 import type { ModelManifest } from '../models/modelCatalog';
 import { files, http, type Peer, type Incoming } from './native';
+import { decodePairing } from './pairing';
 import { NearbySession, type TransferState } from './session';
 export function useNearbyTransfer(models: ModelController) {
   const latest = useRef(models);
@@ -18,6 +19,10 @@ export function useNearbyTransfer(models: ModelController) {
   const [address, setAddress] = useState('');
   const [key, setKey] = useState('');
   const [reveal, setReveal] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const scanLock = useRef(false);
+  const scanGeneration = useRef(0);
   const alive = useRef(true);
   const session = useRef<NearbySession | null>(null);
   if (!session.current && files && http)
@@ -112,7 +117,7 @@ export function useNearbyTransfer(models: ModelController) {
     return true;
   }
   function send(model: ModelManifest) {
-    if (!supported() || busy || working) return;
+    if (scanLock.current || !supported() || busy || working) return;
     setVisible(true);
     setMode('send');
     setReveal(false);
@@ -120,7 +125,7 @@ export function useNearbyTransfer(models: ModelController) {
     session.current?.share(model);
   }
   async function openReceive() {
-    if (!supported() || busy || working) return;
+    if (scanLock.current || !supported() || busy || working) return;
     setVisible(true);
     setMode('receive');
     setPeers([]);
@@ -134,6 +139,8 @@ export function useNearbyTransfer(models: ModelController) {
       );
   }
   async function close() {
+    scanGeneration.current++;
+    setScanError('');
     setKey('');
     setReveal(false);
     setPeers([]);
@@ -141,11 +148,56 @@ export function useNearbyTransfer(models: ModelController) {
     setVisible(false);
   }
   async function pause() {
+    scanGeneration.current++;
     setKey('');
     setReveal(false);
     await session.current?.stop();
   }
+  async function scan() {
+    if (scanLock.current || working || mode !== 'receive') return;
+    const native = NativeModules.NearbyQrScanner as
+      | { scan(): Promise<string | null> }
+      | undefined;
+    if (!native || typeof native.scan !== 'function') {
+      setScanError(
+        'Scanning needs a new native build. You can still enter the address and key manually.',
+      );
+      return;
+    }
+    const generation = ++scanGeneration.current;
+    scanLock.current = true;
+    setScanning(true);
+    setScanError('');
+    try {
+      // Camera permission/scanner presentation may pause the app. Retire old pairing first.
+      await session.current?.stop();
+      const value = await native.scan();
+      if (!value || !alive.current || generation !== scanGeneration.current)
+        return;
+      const pairing = decodePairing(value);
+      await foregroundForScan();
+      await session.current?.stop();
+      if (!alive.current || generation !== scanGeneration.current) return;
+      setAddress(pairing.address);
+      setKey(pairing.key);
+      // Pairing only reads the offered model. File transfer still requires explicit acceptance.
+      await session.current?.connect(pairing.address, pairing.key);
+    } catch (error) {
+      if (alive.current && generation === scanGeneration.current)
+        setScanError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to scan. Check camera access or use manual pairing.',
+        );
+    } finally {
+      scanLock.current = false;
+      if (alive.current) setScanning(false);
+    }
+  }
   return {
+    scanning,
+    scanError,
+    scan,
     visible,
     mode,
     state,
@@ -163,8 +215,8 @@ export function useNearbyTransfer(models: ModelController) {
     openReceive,
     close,
     pause,
-    connect: () => session.current?.connect(address, key),
-    receive: () => session.current?.receive(),
+    connect: () => !scanLock.current && session.current?.connect(address, key),
+    receive: () => !scanLock.current && session.current?.receive(),
     discard: async () => {
       try {
         await session.current?.discard();
@@ -179,3 +231,21 @@ export function useNearbyTransfer(models: ModelController) {
   };
 }
 export type NearbyTransfer = ReturnType<typeof useNearbyTransfer>;
+
+// Android returns an Activity result before React Native's foreground event on some phones.
+async function foregroundForScan(): Promise<void> {
+  if (AppState.currentState === 'active') return;
+  await new Promise<void>((resolve, reject) => {
+    const listener = AppState.addEventListener('change', value => {
+      if (value === 'active') {
+        clearTimeout(timer);
+        listener.remove();
+        resolve();
+      }
+    });
+    const timer = setTimeout(() => {
+      listener.remove();
+      reject(new Error('Return to LLMHub and scan again.'));
+    }, 3000);
+  });
+}

@@ -1,3 +1,5 @@
+import { PairingQRCode } from './PairingQRCode';
+import { encodePairing } from './pairing';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Sheet } from '../ui/Controls';
 import { formatBytes, type Colors } from '../ui/theme';
@@ -112,6 +114,15 @@ export function NearbyTransferSheet({
         ) : null}
         {mode === 'send' && state.host && state.secret ? (
           <>
+            <View style={styles.qr}>
+              <PairingQRCode
+                value={encodePairing(state.host.url, state.secret)}
+              />
+            </View>
+            <Text style={{ color: colors.muted }}>
+              Scan this code on the receiving phone. It contains the private
+              pairing key; keep it visible only to the intended receiver.
+            </Text>
             <Text selectable style={{ color: colors.text }}>
               {state.host.url}
             </Text>
@@ -134,6 +145,21 @@ export function NearbyTransferSheet({
         ) : null}
         {mode === 'receive' && !transfer.working && state.stage !== 'done' ? (
           <>
+            <Button
+              label={transfer.scanning ? 'Scanning…' : 'Scan to connect'}
+              icon="qr"
+              colors={colors}
+              onPress={transfer.scan}
+              disabled={transfer.scanning}
+            />
+            {transfer.scanError ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={{ color: colors.danger }}
+              >
+                {transfer.scanError}
+              </Text>
+            ) : null}
             {transfer.peers.map(peer => (
               <Button
                 key={peer.id}
@@ -141,6 +167,7 @@ export function NearbyTransferSheet({
                 icon="connected"
                 colors={colors}
                 onPress={() => transfer.setAddress(peer.url)}
+                disabled={transfer.scanning}
               />
             ))}
             {!transfer.peers.length ? (
@@ -155,6 +182,7 @@ export function NearbyTransferSheet({
               placeholderTextColor={colors.muted}
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!transfer.scanning}
               value={transfer.address}
               onChangeText={transfer.setAddress}
               style={field}
@@ -167,6 +195,7 @@ export function NearbyTransferSheet({
               autoCapitalize="none"
               autoCorrect={false}
               maxLength={64}
+              editable={!transfer.scanning}
               value={transfer.key}
               onChangeText={transfer.setKey}
               style={field}
@@ -176,7 +205,11 @@ export function NearbyTransferSheet({
               icon="connected"
               colors={colors}
               onPress={transfer.connect}
-              disabled={!transfer.address.trim() || !transfer.key.trim()}
+              disabled={
+                transfer.scanning ||
+                !transfer.address.trim() ||
+                !transfer.key.trim()
+              }
             />
             {state.stage === 'preview' ? (
               <Button
@@ -184,6 +217,7 @@ export function NearbyTransferSheet({
                 icon="download"
                 colors={colors}
                 onPress={transfer.receive}
+                disabled={transfer.scanning}
               />
             ) : null}
           </>
@@ -205,6 +239,7 @@ export function NearbyTransferSheet({
             icon="trash"
             colors={colors}
             onPress={transfer.discard}
+            disabled={transfer.scanning}
           />
         ) : null}
         {state.stage === 'paused' ? (
@@ -226,6 +261,7 @@ export function NearbyTransferSheet({
 }
 const styles = StyleSheet.create({
   content: { gap: 14 },
+  qr: { alignItems: 'center' },
   heading: { fontSize: 17, fontWeight: '600' },
   summary: {
     borderWidth: StyleSheet.hairlineWidth,

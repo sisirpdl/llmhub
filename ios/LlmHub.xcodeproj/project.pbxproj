@@ -17,6 +17,8 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		DD4444444444444444444401 /* ModelTransferFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4444444444444444444402 /* ModelTransferFiles.swift */; };
 		DD5555555555555555555501 /* ModelTransferFilesBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = DD5555555555555555555502 /* ModelTransferFilesBridge.mm */; };
+		DD6666666666666666666601 /* NearbyQrScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6666666666666666666602 /* NearbyQrScanner.swift */; };
+		DD7777777777777777777701 /* NearbyQrScannerBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = DD7777777777777777777702 /* NearbyQrScannerBridge.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +38,8 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		DD4444444444444444444402 /* ModelTransferFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelTransferFiles.swift; path = LlmHub/ModelTransferFiles.swift; sourceTree = "<group>"; };
 		DD5555555555555555555502 /* ModelTransferFilesBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ModelTransferFilesBridge.mm; path = LlmHub/ModelTransferFilesBridge.mm; sourceTree = "<group>"; };
+		DD6666666666666666666602 /* NearbyQrScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NearbyQrScanner.swift; path = LlmHub/NearbyQrScanner.swift; sourceTree = "<group>"; };
+		DD7777777777777777777702 /* NearbyQrScannerBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = NearbyQrScannerBridge.mm; path = LlmHub/NearbyQrScannerBridge.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +63,8 @@
 				DD1111111111111111111102 /* DeviceMemory.mm */,
 				DD2222222222222222222202 /* PdfText.mm */,
 				DD3333333333333333333302 /* LanHttp.mm */,
+				DD7777777777777777777702 /* NearbyQrScannerBridge.mm */,
+				DD6666666666666666666602 /* NearbyQrScanner.swift */,
 				DD5555555555555555555502 /* ModelTransferFilesBridge.mm */,
 				DD4444444444444444444402 /* ModelTransferFiles.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -267,6 +273,8 @@
 				DD1111111111111111111101 /* DeviceMemory.mm in Sources */,
 				DD2222222222222222222201 /* PdfText.mm in Sources */,
 				DD3333333333333333333301 /* LanHttp.mm in Sources */,
+				DD7777777777777777777701 /* NearbyQrScannerBridge.mm in Sources */,
+				DD6666666666666666666601 /* NearbyQrScanner.swift in Sources */,
 				DD5555555555555555555501 /* ModelTransferFilesBridge.mm in Sources */,
 				DD4444444444444444444401 /* ModelTransferFiles.swift in Sources */,
 			);
