@@ -12,6 +12,10 @@ Load a model on one phone, start hosting in Settings, and connect from another p
 
 Send an installed model to another phone on the same Wi-Fi from Models, then choose **Receive model nearby** on the other phone. Explicit pairing, encrypted chunks, resumable partial files and final verification are implemented; native builds and physical Android/iPhone interoperability tests remain pending. Vision models include their projector. No internet is required for the transfer. See [docs/NEARBY_TRANSFER.md](docs/NEARBY_TRANSFER.md).
 
+## Report an issue
+
+Open **Report an issue** from the Android sidebar or Settings. Save a local draft or share a JSON report, with optional basic app details. Direct backend submission is not connected yet. See [docs/ISSUE_REPORTS.md](docs/ISSUE_REPORTS.md) for the future Supabase integration.
+
 ## Native acceleration assets
 
 The optional Android `ggml-hexagon` binaries under `android/app/src/main/assets/ggml-hexagon/` are local build inputs and are intentionally excluded from the repository. Provide them separately on machines that build with Hexagon acceleration enabled. Builds without those binaries use the standard backend when supported by the installed `llama.rn` configuration.

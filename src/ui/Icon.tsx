@@ -1,5 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 const paths = {
+  issue: 'M12 3 2 21h20L12 3zM12 9v5M12 17h.01',
   menu: 'M4 6h16M4 12h12M4 18h16',
   chat: 'M5 3h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9l-5 3v-3H3V5a2 2 0 0 1 2-2zM8 8h8M8 12h5',
   models: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',

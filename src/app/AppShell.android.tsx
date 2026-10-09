@@ -237,6 +237,21 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                   Import chat
                 </Text>
               </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Report an issue"
+                onPress={() => {
+                  setDrawer(false);
+                  app.setIssueReportVisible(true);
+                }}
+                android_ripple={{ color: colors.border }}
+                style={styles.destination}
+              >
+                <Icon name="issue" color={colors.text} size={26} />
+                <Text style={[styles.destinationText, { color: colors.text }]}>
+                  Report an issue
+                </Text>
+              </Pressable>
               <View
                 style={[styles.divider, { backgroundColor: colors.border }]}
               />
