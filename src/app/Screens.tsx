@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import type { AppController } from './AppController';
 import { ModelSettingsSheet } from '../settings/ModelSettingsSheet';
+import { IssueReportSheet } from '../support/IssueReportSheet';
 import { RenameChatSheet } from '../chat/RenameChatSheet';
 import { ChatView } from '../chat/ChatView';
 import {
@@ -120,6 +121,11 @@ export function ScreenContent({ app }: { app: AppController }) {
           Save one JSON file with this conversation and its images.
         </Text>
       </Sheet>
+      <IssueReportSheet
+        visible={app.issueReportVisible}
+        onClose={() => app.setIssueReportVisible(false)}
+        colors={colors}
+      />
       <NearbyTransferSheet
         transfer={app.nearby}
         colors={colors}
@@ -389,6 +395,24 @@ function SettingsScreen({ app }: { app: AppController }) {
         you return. Vision support is a preview and requires a compatible
         projector.
       </Text>
+      <Text style={[styles.section, { color: colors.accent }]}>Support</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Report an issue"
+        onPress={() => app.setIssueReportVisible(true)}
+        style={[
+          styles.row,
+          styles.group,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Icon name="issue" color={colors.accent} size={20} />
+        <Text
+          style={[styles.rowText, styles.supportLabel, { color: colors.text }]}
+        >
+          Report an issue
+        </Text>
+      </Pressable>
       <InfoSection app={app} />
     </ScrollView>
   );
@@ -535,6 +559,7 @@ export function Onboarding({
   );
 }
 const styles = StyleSheet.create({
+  supportLabel: { marginLeft: 12 },
   fill: { flex: 1 },
   banner: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16 },
   bannerText: { flex: 1, fontSize: 13, lineHeight: 19 },

@@ -28,6 +28,7 @@ export function useAppController() {
   const [chatSettingsVisible, setChatSettingsVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [documentsVisible, setDocumentsVisible] = useState(false);
+  const [issueReportVisible, setIssueReportVisible] = useState(false);
   const [chatMenuVisible, setChatMenuVisible] = useState(false);
   const [transfer, setTransfer] = useState<'import' | 'export' | null>(null);
   const transferBusy = useRef(false);
@@ -240,6 +241,8 @@ export function useAppController() {
     }
   }
   return {
+    issueReportVisible,
+    setIssueReportVisible,
     nearby,
     lan,
     chatModel,

@@ -1,6 +1,13 @@
 import React from 'react';
 import Renderer from 'react-test-renderer';
-import { Platform, ActionSheetIOS, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  Platform,
+  ActionSheetIOS,
+  Alert,
+  TextInput,
+  Share,
+} from 'react-native';
 import { exportChat, importChatFile } from '../src/chat/chatTransfer';
 import { useAppController, type AppController } from '../src/app/AppController';
 import AndroidAppShell from '../src/app/AppShell.android';
@@ -293,3 +300,58 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
   await Renderer.act(async () => renderer!.unmount());
   sheet.mockRestore();
 });
+
+test.each(['android', 'ios'] as const)(
+  '%s opens report form and saves/shares only on request',
+  async platform => {
+    const sharing = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: Share.sharedAction });
+    let renderer: Renderer.ReactTestRenderer;
+    await Renderer.act(async () => {
+      renderer = Renderer.create(<Harness platform={platform} />);
+    });
+    await Renderer.act(async () => {
+      if (platform === 'android')
+        renderer!.root
+          .findByProps({ accessibilityLabel: 'Open navigation menu' })
+          .props.onPress();
+      else app.setRoute('settings');
+    });
+    await Renderer.act(async () => {
+      renderer!.root
+        .findAllByProps({ accessibilityLabel: 'Report an issue' })
+        .find(node => typeof node.props.onPress === 'function')!
+        .props.onPress();
+    });
+    expect(app.issueReportVisible).toBe(true);
+    expect(sharing).not.toHaveBeenCalled();
+    await Renderer.act(async () => {
+      const fields = renderer!.root.findAllByType(TextInput);
+      fields
+        .find(node => node.props.accessibilityLabel === 'Issue title')!
+        .props.onChangeText('Generation failed');
+      fields
+        .find(node => node.props.accessibilityLabel === 'Issue description')!
+        .props.onChangeText('Stopped after the first word.');
+    });
+    await Renderer.act(async () => {
+      await renderer!.root.findByProps({ label: 'Save draft' }).props.onPress();
+    });
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      '@llmhub/issue-report-draft-v1',
+      expect.stringContaining('Generation failed'),
+    );
+    expect(sharing).not.toHaveBeenCalled();
+    await Renderer.act(async () => {
+      await renderer!.root
+        .findByProps({ label: 'Share report' })
+        .props.onPress();
+    });
+    const report = JSON.parse(sharing.mock.calls[0][0].message!);
+    expect(report.title).toBe('Generation failed');
+    expect(report.diagnostics).toBeUndefined();
+    await Renderer.act(async () => renderer!.unmount());
+    sharing.mockRestore();
+  },
+);
