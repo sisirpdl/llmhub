@@ -5,9 +5,9 @@ Share an installed GGUF model directly with another LLMHub phone on the same Wi-
 ## Use
 
 1. On the sender, open Models and press the send icon beside an installed model.
-2. Wait for file checks. Show the pairing key; keep it private.
-3. On the receiver, press **Receive model nearby**. Select a discovered sender or enter its displayed IPv4 address (port 8081).
-4. Enter the sender's 48-character pairing key and press **Review model**.
+2. Wait for file checks. The sender displays a QR code containing its session address and pairing key; keep the code private.
+3. On the receiver, press **Receive model nearby**, then **Scan to connect** and allow camera access. Scan the sender's code to fill the address/key and open model review.
+4. Alternatively, select a discovered sender or enter its displayed IPv4 address (port 8081), enter its 48-character key, and press **Review model**.
 5. Review size, license, source verification and storage, then press **Accept and receive**. Vision bundles include the projector.
 6. Keep both apps open until verification finishes. The receiver can then load the model from Your models.
 
@@ -49,3 +49,11 @@ Before treating this preview as device verified, rebuild both native apps and re
 - Offline Wi-Fi, permission denial, manual pairing, isolated Wi-Fi, lost connection, backgrounding, sender/receiver restarts, and resumed tails.
 - Multi-GB transfers, low storage, corrupt ciphertext, corrupt partial files and projector failure; no partial model should appear as installed.
 - LAN inference and nearby transfer transport isolation, native module registration, and discovery cleanup.
+
+## QR pairing
+
+QR generation is local (`qrcode-generator` rendered with the existing SVG library). Android uses the bundled ZXing Embedded decoder; iOS uses AVFoundation QR metadata detection. Camera frames and pairing credentials are not uploaded or added to reports/logs. Scanning requests camera access only when initiated by the receiver. Camera denial/cancellation leaves manual pairing available.
+
+The bounded QR payload is `llmhub://nearby/v1?address=<encoded private IPv4 HTTP origin>&key=<48 lowercase hex characters>`. It is parsed as data, never opened as a URL or registered as a deep link. Unsupported versions, unrelated codes, public/credential-bearing addresses, extra/duplicate parameters, invalid keys and oversized payloads are rejected before connecting. A successful scan fetches the model offer only; **Accept and receive** remains necessary. Keys expire when the sender stops or restarts sharing.
+
+Run `npm install` and rebuild the native apps after applying this change. Existing iOS camera permission text now covers pairing; Android declares camera permission with optional camera hardware. Device validation must include first-time permissions, denial, cancellation, app backgrounding, rotation and cross-platform scanning. Native camera builds/device checks remain pending.

@@ -162,6 +162,6 @@ class LanHttpModule(context: ReactApplicationContext, private val moduleName: St
   override fun invalidate() {runCatching {server?.close()};peers.values.forEach {runCatching {it.close()}};clients.values.forEach {runCatching {it.close()}};workers.shutdownNow();timers.shutdownNow();super.invalidate()}
 }
 class LanHttpPackage : ReactPackage {
-  override fun createNativeModules(context: ReactApplicationContext): List<NativeModule> = listOf(LanHttpModule(context), LanHttpModule(context, "ModelTransferHttp"), ModelTransferFiles(context))
+  override fun createNativeModules(context: ReactApplicationContext): List<NativeModule> = listOf(LanHttpModule(context), LanHttpModule(context, "ModelTransferHttp"), ModelTransferFiles(context), NearbyQrScanner(context))
   override fun createViewManagers(context: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }

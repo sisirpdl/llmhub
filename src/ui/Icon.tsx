@@ -1,5 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 const paths = {
+  qr: 'M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v6h-6v-2M3 12h6M12 3v6M12 12h3M18 12h3M12 18v3',
   issue: 'M12 3 2 21h20L12 3zM12 9v5M12 17h.01',
   menu: 'M4 6h16M4 12h12M4 18h16',
   chat: 'M5 3h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9l-5 3v-3H3V5a2 2 0 0 1 2-2zM8 8h8M8 12h5',
