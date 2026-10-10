@@ -101,14 +101,21 @@ This UI change keeps the current Qwen2.5 1.5B and SmolVLM Instruct packages; pro
 
 ## Chat interchange and local documents
 
-Model-file imports are separate from chat import/export. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md) for the single native OpenAI JSON format, portable images, migration and file controls. Importing a chat does not download or load its named model. About LLMHub/diagnostics now live at the end of Settings.
+Model-file imports are separate from chat import/export. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md) for the single native OpenAI JSON format, portable images, migration and file controls. Importing a chat does not download or load its named model. About app and diagnostics live in the About app Settings tab.
 
 Documents in the main navigation imports PDF/Markdown/TXT into a shared private library. Ask your documents selects which files each chat searches; importing from a chat attaches the new file there. PDF text extraction, page labels and cached keyword indexes are implemented. OCR, embeddings and validated citations remain planned. See [PDF_RAG.md](PDF_RAG.md) for rebuild steps, limits and checks.
 
 ## Hugging Face authentication
 
-Settings starts with a Hugging Face section: paste a read token, tap **Apply token**, then retry the download. **Remove token** clears the shared credential. The field is masked, with a visibility toggle and a link to Hugging Face token settings. Discovery filters link to this same section instead of owning a separate token.
+Settings → Model defaults includes Hugging Face token controls: paste a read token, tap **Apply token**, then retry the download. **Remove token** clears the shared credential. The field is masked, with a visibility toggle and a link to Hugging Face token settings. Discovery filters link to this same section instead of owning a separate token.
 
 The token is shared across Hub browsing, GGUF metadata checks, built-in/imported model downloads, vision projector downloads and retries. It stays in process memory and must be entered again after an app restart; it is not written to AsyncStorage, model metadata or chat exports. A download snapshots its credential when it starts; changing/removing the token affects subsequent requests/downloads, not an already-running transfer. Authorization headers are attached only when the initial request URL is the HTTPS `huggingface.co` origin. Arbitrary remote URLs receive no credential.
 
 A read token does not grant model access by itself. Gated models may require accepting terms or receiving approval on the repository page with the same Hugging Face account. Authentication failures point back to Settings. Native provider/redirect and physical-device download checks remain required.
+
+
+## Metadata check responsiveness
+
+GGUF variants remain selectable while their RAM metadata is being checked; pending checks do not imply compatibility. Selecting an unchecked variant cancels current background requests and moves that file to the front of the two-worker queue. Completed results are kept, and other checks continue in the background. In Supported mode, downloading still requires a successful RAM fit estimate.
+
+Successful estimator metadata is cached in private AsyncStorage, bounded to 80 revision-pinned file URLs. No Hugging Face tokens or device RAM readings are stored in this cache. Cached values are revalidated with the current estimator after restart. A changed repository revision gets a new cache entry. Cache errors do not block metadata checks; unknown results are not persisted. RAM fit is recalculated for the current device memory, context and vision settings. The whole remote check has a 12-second budget per file, in addition to bounded range requests. Slow or unsupported files remain unknown rather than being labeled compatible.

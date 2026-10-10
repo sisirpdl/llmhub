@@ -185,3 +185,46 @@ test('suggests and applies a smaller context only when it predicts a supported f
     }),
   ).toBeDefined();
 });
+
+test('selecting a pending variant prioritizes it and permits download before background checks finish', async () => {
+  const meta = {
+    architecture: 'qwen2',
+    layers: 24,
+    kvHeads: 2,
+    keyLength: 64,
+    valueLength: 64,
+    maxContext: 8192,
+  };
+  const reader = readGGUFMetadata as jest.Mock;
+  reader.mockClear();
+  reader.mockImplementation((_details, candidate, _token, signal) =>
+    candidate.path === 'chosen.gguf'
+      ? Promise.resolve(meta)
+      : new Promise(resolve =>
+          signal.addEventListener('abort', () => resolve(null)),
+        ),
+  );
+  await renderVariants({
+    ...details,
+    files: [
+      file,
+      { ...file, path: 'another.gguf' },
+      { ...file, path: 'chosen.gguf' },
+    ],
+  });
+  const initialSignals = reader.mock.calls.slice(0, 2).map(call => call[3]);
+  await Renderer.act(async () =>
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Select chosen.gguf' })
+      .props.onPress(),
+  );
+  expect(initialSignals.every(signal => signal.aborted)).toBe(true);
+  expect(reader.mock.calls[2][1].path).toBe('chosen.gguf');
+  expect(
+    renderer.root
+      .findAllByType(Button)
+      .find(node => node.props.label.startsWith('Download'))!.props.disabled,
+  ).toBe(false);
+  expect(text()).toContain('Checking variants in the background');
+  reader.mockResolvedValue(meta);
+});

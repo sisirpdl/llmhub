@@ -16,6 +16,11 @@ import { darkColors, lightColors, type Appearance } from '../ui/theme';
 import { useNearbyTransfer } from '../nearby/useNearbyTransfer';
 import { useLan } from '../lan/useLan';
 import { useDocumentIndex } from '../documents/useDocumentIndex';
+export type SettingsSection =
+  | 'General'
+  | 'Host & Connect'
+  | 'Model defaults'
+  | 'About app';
 export type Route = 'chat' | 'models' | 'documents' | 'nearby' | 'settings';
 export function useAppController() {
   const systemDark = useColorScheme() === 'dark';
@@ -23,6 +28,8 @@ export function useAppController() {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [onboarding, setOnboarding] = useState<boolean | null>(null);
   const [route, setRoute] = useState<Route>('models');
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSection>('General');
   const [discoveryVisible, setDiscoveryVisible] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [chatSettingsVisible, setChatSettingsVisible] = useState(false);
@@ -264,6 +271,8 @@ export function useAppController() {
     chat,
     route,
     setRoute,
+    settingsSection,
+    setSettingsSection,
     appearance,
     setAppearance,
     dark,

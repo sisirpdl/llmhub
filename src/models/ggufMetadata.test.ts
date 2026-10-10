@@ -1,3 +1,14 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+const mockDisk = new Map<string, string>();
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async key => mockDisk.get(key) || null),
+    setItem: jest.fn(async (key, value) => {
+      mockDisk.set(key, value);
+    }),
+  },
+}));
 import { rangeFetch, readGGUFMetadata } from './ggufMetadata';
 import { gguf } from '@huggingface/gguf';
 import type { HubDetails } from './huggingFace';
@@ -100,4 +111,83 @@ test('does not claim RAM compatibility for missing architecture metadata', async
       new AbortController().signal,
     ),
   ).resolves.toBeNull();
+});
+
+test('restores revision-pinned metadata after restart and fetches changed revisions', async () => {
+  const architecture = {
+    'general.architecture': 'qwen2',
+    'qwen2.block_count': 24,
+    'qwen2.attention.head_count_kv': 2,
+    'qwen2.attention.key_length': 64,
+    'qwen2.attention.value_length': 64,
+    'qwen2.context_length': 8192,
+  };
+  const details = {
+    model: { id: 'org/cached' },
+    revision: 'b'.repeat(40),
+  } as HubDetails;
+  const file = {
+    path: 'cached.gguf',
+    size: 1000,
+    quantization: 'Q4_K_M',
+    projector: false,
+    split: false,
+  };
+  (gguf as jest.Mock).mockResolvedValue({ metadata: architecture });
+  const value = await readGGUFMetadata(
+    details,
+    file,
+    'hf_private',
+    new AbortController().signal,
+  );
+  await Promise.resolve();
+  expect(AsyncStorage.setItem).toHaveBeenCalled();
+  expect([...mockDisk.values()].join('')).not.toContain('hf_private');
+  let restoredReader = readGGUFMetadata;
+  let restartedParser: jest.Mock = jest.fn();
+  jest.isolateModules(() => {
+    restoredReader = require('./ggufMetadata').readGGUFMetadata;
+    restartedParser = require('@huggingface/gguf').gguf;
+  });
+  restartedParser.mockClear();
+  await expect(
+    restoredReader(details, file, '', new AbortController().signal),
+  ).resolves.toEqual(value);
+  expect(restartedParser).not.toHaveBeenCalled();
+  restartedParser.mockResolvedValue({ metadata: architecture });
+  await restoredReader(
+    { ...details, revision: 'c'.repeat(40) },
+    file,
+    '',
+    new AbortController().signal,
+  );
+  expect(restartedParser).toHaveBeenCalledTimes(1);
+});
+
+test('bounds the complete remote metadata check to twelve seconds', async () => {
+  jest.useFakeTimers();
+  try {
+    (gguf as jest.Mock).mockImplementation((url, options) =>
+      options.fetch(url),
+    );
+    const work = readGGUFMetadata(
+      { model: { id: 'org/timeout' }, revision: 'd'.repeat(40) } as HubDetails,
+      {
+        path: 'slow.gguf',
+        size: 1000,
+        quantization: 'Q4',
+        projector: false,
+        split: false,
+      },
+      '',
+      new AbortController().signal,
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(12000);
+    await expect(work).resolves.toBeNull();
+    expect(constructors[0].abort).toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
 });

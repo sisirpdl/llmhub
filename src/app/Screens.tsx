@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { AppController } from './AppController';
+import type { AppController, SettingsSection } from './AppController';
 import { ModelSettingsSheet } from '../settings/ModelSettingsSheet';
 import { IssueReportSheet } from '../support/IssueReportSheet';
 import { RenameChatSheet } from '../chat/RenameChatSheet';
@@ -27,6 +27,10 @@ import { LanSettings } from '../lan/LanSettings';
 import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
   const { colors, models, chat } = app;
+  const openLanSettings = () => {
+    app.setSettingsSection('Host & Connect');
+    app.setRoute('settings');
+  };
   return (
     <View style={styles.fill}>
       {models.notice ? (
@@ -103,14 +107,14 @@ export function ScreenContent({ app }: { app: AppController }) {
           onModels={() => app.setRoute('models')}
           onPicker={() =>
             app.lan.remote || app.lan.host
-              ? app.setRoute('settings')
+              ? openLanSettings()
               : app.setPickerVisible(true)
           }
           settingsVisible={app.chatSettingsVisible}
           onCloseSettings={() => app.setChatSettingsVisible(false)}
           onSettings={() =>
             app.lan.remote || app.lan.host
-              ? app.setRoute('settings')
+              ? openLanSettings()
               : app.setChatSettingsVisible(true)
           }
           onAttachImage={app.requestImageAttachment}
@@ -168,6 +172,7 @@ export function ScreenContent({ app }: { app: AppController }) {
         colors={colors}
         onTokenSettings={() => {
           app.setDiscoveryVisible(false);
+          app.setSettingsSection('Model defaults');
           app.setRoute('settings');
         }}
       />
@@ -301,95 +306,155 @@ export function History({
 }
 function SettingsScreen({ app }: { app: AppController }) {
   const { colors } = app;
+  const section = app.settingsSection;
   return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text
-        accessibilityRole="header"
-        style={[styles.section, { color: colors.accent }]}
+    <View style={styles.fill}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.settingsSelector}
+        contentContainerStyle={styles.settingsTabs}
       >
-        General
-      </Text>
-      <Text style={[styles.caption, { color: colors.muted }]}>Appearance</Text>
-      <View
-        style={[
-          styles.group,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        {(['dark', 'light', 'system'] as const).map(value => (
+        {(
+          [
+            'General',
+            'Host & Connect',
+            'Model defaults',
+            'About app',
+          ] as SettingsSection[]
+        ).map(label => (
           <Pressable
-            key={value}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: app.appearance === value }}
-            onPress={() => app.setAppearance(value)}
-            style={[styles.row, { borderColor: colors.border }]}
+            key={label}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: section === label }}
+            onPress={() => app.setSettingsSection(label)}
+            style={[
+              styles.settingsTab,
+              {
+                backgroundColor:
+                  section === label ? colors.elevated : colors.background,
+                borderColor: section === label ? colors.accent : colors.border,
+              },
+            ]}
           >
-            <Text style={[styles.rowText, { color: colors.text }]}>
-              {value === 'system'
-                ? 'Follow system'
-                : value === 'dark'
-                ? 'Dark'
-                : 'Light'}
+            <Text
+              style={{
+                color: section === label ? colors.accent : colors.muted,
+              }}
+            >
+              {label}
             </Text>
-            <View style={styles.fill} />
-            {app.appearance === value ? (
-              <Icon name="check" color={colors.accent} size={20} />
-            ) : null}
           </Pressable>
         ))}
-      </View>
-      <Button
-        label="Import chat"
-        icon="download"
-        colors={colors}
-        disabled={app.chat.sending || !app.chat.loaded || Boolean(app.transfer)}
-        onPress={app.importChat}
-      />
-      <Text
-        accessibilityRole="header"
-        style={[styles.section, { color: colors.accent }]}
+      </ScrollView>
+      <ScrollView
+        key={section}
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
       >
-        Host &amp; Connect
-      </Text>
-      <LanSettings app={app} />
-      <Text
-        accessibilityRole="header"
-        style={[styles.section, { color: colors.accent }]}
-      >
-        Model defaults
-      </Text>
-      <HuggingFaceTokenSettings
-        token={app.models.hfToken}
-        onApply={app.models.setHfToken}
-        colors={colors}
-      />
-      <View
-        style={[
-          styles.group,
-          styles.padded,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.paragraph, { color: colors.muted }]}>
-          {app.lan.remote
-            ? 'The host supplies generation settings in LAN mode. Disconnect to adjust this phone’s model.'
-            : app.lan.host
-            ? 'Stop hosting before changing model settings.'
-            : `Adjust generation settings for ${app.models.model.displayName}. Instructions are saved with the current chat.`}
-        </Text>
-        <Button
-          label="Model settings"
-          disabled={Boolean(app.lan.remote || app.lan.host || app.lan.pending)}
-          icon="sliders"
-          colors={colors}
-          onPress={() => app.setChatSettingsVisible(true)}
-        />
-      </View>
-      <InfoSection app={app} />
-    </ScrollView>
+        {section === 'General' ? (
+          <>
+            <Text
+              accessibilityRole="header"
+              style={[styles.section, { color: colors.accent }]}
+            >
+              General
+            </Text>
+            <Text style={[styles.caption, { color: colors.muted }]}>
+              Appearance
+            </Text>
+            <View
+              style={[
+                styles.group,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              {(['dark', 'light', 'system'] as const).map(value => (
+                <Pressable
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: app.appearance === value }}
+                  onPress={() => app.setAppearance(value)}
+                  style={[styles.row, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.rowText, { color: colors.text }]}>
+                    {value === 'system'
+                      ? 'Follow system'
+                      : value === 'dark'
+                      ? 'Dark'
+                      : 'Light'}
+                  </Text>
+                  <View style={styles.fill} />
+                  {app.appearance === value ? (
+                    <Icon name="check" color={colors.accent} size={20} />
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+            <Button
+              label="Import chat"
+              icon="download"
+              colors={colors}
+              disabled={
+                app.chat.sending || !app.chat.loaded || Boolean(app.transfer)
+              }
+              onPress={app.importChat}
+            />
+          </>
+        ) : section === 'Host & Connect' ? (
+          <>
+            <Text
+              accessibilityRole="header"
+              style={[styles.section, { color: colors.accent }]}
+            >
+              Host &amp; Connect
+            </Text>
+            <LanSettings app={app} />
+          </>
+        ) : section === 'Model defaults' ? (
+          <>
+            <Text
+              accessibilityRole="header"
+              style={[styles.section, { color: colors.accent }]}
+            >
+              Model defaults
+            </Text>
+            <HuggingFaceTokenSettings
+              token={app.models.hfToken}
+              onApply={app.models.setHfToken}
+              colors={colors}
+            />
+            <View
+              style={[
+                styles.group,
+                styles.padded,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.paragraph, { color: colors.muted }]}>
+                {app.lan.remote
+                  ? 'The host supplies generation settings in LAN mode. Disconnect to adjust this phone’s model.'
+                  : app.lan.host
+                  ? 'Stop hosting before changing model settings.'
+                  : `Adjust generation settings for ${app.models.model.displayName}. Instructions are saved with the current chat.`}
+              </Text>
+              <Button
+                label="Model settings"
+                disabled={Boolean(
+                  app.lan.remote || app.lan.host || app.lan.pending,
+                )}
+                icon="sliders"
+                colors={colors}
+                onPress={() => app.setChatSettingsVisible(true)}
+              />
+            </View>
+          </>
+        ) : (
+          <InfoSection app={app} />
+        )}
+      </ScrollView>
+    </View>
   );
 }
 function InfoSection({ app }: { app: AppController }) {
@@ -422,9 +487,7 @@ function InfoSection({ app }: { app: AppController }) {
   ];
   return (
     <View>
-      <Text style={[styles.section, { color: colors.accent }]}>
-        About LLMHub
-      </Text>
+      <Text style={[styles.section, { color: colors.accent }]}>About app</Text>
       <View style={styles.brand}>
         <Icon name="chat" color={colors.accent} size={44} />
         <Text style={[styles.brandName, { color: colors.text }]}>LLMHub</Text>
@@ -536,6 +599,15 @@ export function Onboarding({
   );
 }
 const styles = StyleSheet.create({
+  settingsSelector: { flexGrow: 0, flexShrink: 0 },
+  settingsTabs: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
+  settingsTab: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   fill: { flex: 1 },
   banner: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16 },
   bannerText: { flex: 1, fontSize: 13, lineHeight: 19 },

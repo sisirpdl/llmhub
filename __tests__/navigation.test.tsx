@@ -229,20 +229,59 @@ test.each(['android', 'ios'] as const)(
     expect(
       renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
     ).toBeDefined();
-    const labels = renderer!.root
-      .findAllByType('Text' as never)
-      .map(node => node.props.children);
-    expect(labels.indexOf('General')).toBeLessThan(
-      labels.indexOf('Host & Connect'),
+    const sectionTab = (label: string) =>
+      renderer!.root
+        .findAllByProps({ accessibilityRole: 'tab' })
+        .find(node => node.props.accessibilityLabel === label)!;
+    expect(sectionTab('General').props.accessibilityState.selected).toBe(true);
+    expect(
+      renderer!.root.findAllByProps({ label: 'Model settings' }),
+    ).toHaveLength(0);
+    await Renderer.act(async () =>
+      sectionTab('Model defaults').props.onPress(),
     );
-    expect(labels.indexOf('Host & Connect')).toBeLessThan(
-      labels.indexOf('Model defaults'),
+    expect(sectionTab('Model defaults').props.accessibilityState.selected).toBe(
+      true,
     );
-    expect(labels.indexOf('About LLMHub')).toBeGreaterThan(
-      labels.indexOf('Model defaults'),
+    expect(
+      renderer!.root.findByProps({ label: 'Model settings' }),
+    ).toBeDefined();
+    expect(
+      renderer!.root.findAllByProps({ accessibilityLabel: 'Import chat' }),
+    ).toHaveLength(0);
+    await Renderer.act(async () => sectionTab('About app').props.onPress());
+    expect(
+      renderer!.root
+        .findAllByType('Text' as never)
+        .map(node => node.props.children),
+    ).toContain('Engine diagnostics');
+    expect(
+      renderer!.root.findAllByProps({ label: 'Model settings' }),
+    ).toHaveLength(0);
+    await Renderer.act(async () =>
+      sectionTab('Host & Connect').props.onPress(),
     );
-    expect(labels).not.toContain('Privacy');
-    expect(labels).not.toContain('Support');
+    expect(sectionTab('Host & Connect').props.accessibilityState.selected).toBe(
+      true,
+    );
+    expect(
+      renderer!.root
+        .findAllByType('Text' as never)
+        .map(node => node.props.children),
+    ).not.toContain('Engine diagnostics');
+    await Renderer.act(async () => sectionTab('General').props.onPress());
+    expect(
+      renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
+    ).toBeDefined();
+    await Renderer.act(async () => {
+      renderer!.root
+        .findAll(node => typeof node.props.onTokenSettings === 'function')[0]
+        .props.onTokenSettings();
+    });
+    expect(app.settingsSection).toBe('Model defaults');
+    expect(sectionTab('Model defaults').props.accessibilityState.selected).toBe(
+      true,
+    );
     await Renderer.act(async () => renderer!.unmount());
     menu.mockRestore();
   },

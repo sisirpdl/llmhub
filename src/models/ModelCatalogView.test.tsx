@@ -1,3 +1,6 @@
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
 import Renderer from 'react-test-renderer';
 import { Text } from 'react-native';
 import { ModelCatalogView } from './ModelCatalogView';

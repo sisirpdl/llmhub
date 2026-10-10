@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -55,6 +55,7 @@ export function GGUFVariants({
   const [metadata, setMetadata] = useState<
     Record<string, MemoryMetadata | null>
   >({});
+  const checked = useRef<Record<string, MemoryMetadata | null>>({});
   const [checking, setChecking] = useState(true);
   const [supported, setSupported] = useState(true);
   const [quant, setQuant] = useState('All');
@@ -86,11 +87,21 @@ export function GGUFVariants({
     };
   }, []);
   useEffect(() => {
-    const abort = new AbortController();
+    checked.current = {};
     setMetadata({});
+  }, [details, token]);
+  useEffect(() => {
+    const abort = new AbortController();
     setChecking(true);
     let cursor = 0;
-    const candidates = details.files.filter(f => !f.projector && !f.split);
+    const candidates = details.files.filter(
+      f =>
+        !f.projector &&
+        !f.split &&
+        !Object.prototype.hasOwnProperty.call(checked.current, f.path),
+    );
+    const chosen = candidates.findIndex(f => f.path === selected?.path);
+    if (chosen > 0) candidates.unshift(...candidates.splice(chosen, 1));
     async function worker() {
       while (cursor < candidates.length && !abort.signal.aborted) {
         const file = candidates[cursor++];
@@ -100,15 +111,17 @@ export function GGUFVariants({
           token,
           abort.signal,
         );
-        if (!abort.signal.aborted)
+        if (!abort.signal.aborted) {
+          checked.current[file.path] = value;
           setMetadata(current => ({ ...current, [file.path]: value }));
+        }
       }
     }
     Promise.all([worker(), worker()]).finally(() => {
       if (!abort.signal.aborted) setChecking(false);
     });
     return () => abort.abort();
-  }, [details, token]);
+  }, [details, token, selected?.path]);
   const projection = vision ? projector?.size || 0 : 0;
   const suitability = (file: HubFile) =>
     vision && (!projector || projector.size <= 0)
@@ -124,7 +137,10 @@ export function GGUFVariants({
   const visible = files.filter(
     file =>
       (quant === 'All' || file.quantization === quant) &&
-      (!supported || (!file.split && suitability(file).status === 'fits')),
+      (!supported ||
+        (!file.split &&
+          (suitability(file).status === 'fits' ||
+            !Object.prototype.hasOwnProperty.call(metadata, file.path)))),
   );
   const hidden =
     files.filter(file => quant === 'All' || file.quantization === quant)
@@ -145,7 +161,7 @@ export function GGUFVariants({
     if (vision && (!projector || projector.size <= 0))
       return 'Select a projector with a known size to estimate vision RAM.';
     if (!metadata[file.path])
-      return checking
+      return !Object.prototype.hasOwnProperty.call(metadata, file.path)
         ? 'Reading GGUF metadata…'
         : 'GGUF metadata is unavailable or its architecture cannot be estimated.';
     if (file.size <= 0) return 'Model download size is unavailable.';
@@ -308,7 +324,7 @@ export function GGUFVariants({
           <View style={s.row}>
             <ActivityIndicator color={colors.accent} size="small" />
             <Text style={[s.small, { color: colors.muted }]}>
-              Checking GGUF memory requirements…
+              Checking variants in the background…
             </Text>
           </View>
         ) : null}

@@ -33,7 +33,7 @@ Future LAN/SDK/P2P chat-document interfaces must use this same document rather t
 - iOS: header **⋮** uses ActionSheetIOS; **Import chat** is in **Settings → General**.
 - Export opens the system save dialog. Import opens the system document picker and adds/selects a new conversation; existing chats are retained.
 - Model settings remain beside the composer model chip. The header menu does not open settings.
-- About LLMHub and engine diagnostics are the final section of Settings, removed from Android destinations and iOS tabs.
+- About app is the final Settings selector tab and includes engine diagnostics, removed from Android destinations and iOS tabs.
 
 Export contains private chat text and supported images. Choosing a provider/destination in the system dialog is the user's explicit file-saving action; Hub does not send chats to a hosted inference service.
 
