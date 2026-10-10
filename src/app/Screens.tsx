@@ -144,10 +144,20 @@ export function ScreenContent({ app }: { app: AppController }) {
           label="Ask your documents"
           icon="document"
           colors={colors}
-          disabled={chat.sending}
+          disabled={chat.sending || chat.deleting || Boolean(app.transfer)}
           onPress={() => {
             app.setChatMenuVisible(false);
             app.setDocumentsVisible(true);
+          }}
+        />
+        <Button
+          label="Delete chat"
+          icon="trash"
+          colors={colors}
+          disabled={chat.sending || chat.deleting || Boolean(app.transfer)}
+          onPress={() => {
+            app.setChatMenuVisible(false);
+            chat.deleteConversation();
           }}
         />
         <Text style={[styles.caption, { color: colors.muted }]}>
@@ -242,7 +252,7 @@ export function History({
     <View style={styles.history}>
       <Pressable
         accessibilityRole="button"
-        disabled={chat.sending}
+        disabled={chat.sending || chat.deleting || Boolean(app.transfer)}
         onPress={() => {
           chat.newConversation();
           app.setRoute('chat');
@@ -257,44 +267,59 @@ export function History({
       </Pressable>
       {chat.history.length ? (
         chat.history.map(item => (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            accessibilityState={{
-              selected: item.id === chat.currentId,
-              disabled: chat.sending,
-            }}
-            disabled={chat.sending}
-            onPress={() => {
-              chat.selectConversation(item.id);
-              app.setRoute('chat');
-              onSelect();
-            }}
-            style={[
-              styles.historyRow,
-              {
-                backgroundColor:
-                  item.id === chat.currentId
-                    ? colors.elevated
-                    : colors.background,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Icon name="chat" color={colors.muted} size={20} />
-            <View style={styles.fill}>
-              <Text
-                numberOfLines={2}
-                style={[styles.rowText, { color: colors.text }]}
-              >
-                {item.title}
-              </Text>
-              <Text style={[styles.caption, { color: colors.muted }]}>
-                {new Date(item.updatedAt).toLocaleDateString()} ·{' '}
-                {item.messages.filter(m => m.role === 'user').length} turns
-              </Text>
-            </View>
-          </Pressable>
+          <View key={item.id} style={styles.historyEntry}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{
+                selected: item.id === chat.currentId,
+                disabled:
+                  chat.sending || chat.deleting || Boolean(app.transfer),
+              }}
+              disabled={chat.sending || chat.deleting || Boolean(app.transfer)}
+              onPress={() => {
+                chat.selectConversation(item.id);
+                app.setRoute('chat');
+                onSelect();
+              }}
+              style={[
+                styles.historyRow,
+                styles.fill,
+                {
+                  backgroundColor:
+                    item.id === chat.currentId
+                      ? colors.elevated
+                      : colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Icon name="chat" color={colors.muted} size={20} />
+              <View style={styles.fill}>
+                <Text
+                  numberOfLines={2}
+                  style={[styles.rowText, { color: colors.text }]}
+                >
+                  {item.title}
+                </Text>
+                <Text style={[styles.caption, { color: colors.muted }]}>
+                  {new Date(item.updatedAt).toLocaleDateString()} ·{' '}
+                  {item.messages.filter(m => m.role === 'user').length} turns
+                </Text>
+              </View>
+            </Pressable>
+            <IconButton
+              name="trash"
+              label={`Delete chat: ${item.title}`}
+              colors={colors}
+              disabled={
+                chat.sending ||
+                chat.deleting ||
+                !chat.loaded ||
+                Boolean(app.transfer)
+              }
+              onPress={() => chat.deleteConversation(item.id)}
+            />
+          </View>
         ))
       ) : (
         <Text style={[styles.paragraph, { color: colors.muted }]}>
@@ -640,6 +665,7 @@ const styles = StyleSheet.create({
   brand: { alignItems: 'center', paddingVertical: 24 },
   brandName: { fontSize: 28, fontWeight: '600', marginTop: 12 },
   history: { gap: 6 },
+  historyEntry: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',

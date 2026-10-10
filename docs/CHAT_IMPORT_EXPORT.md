@@ -75,3 +75,10 @@ No native dependency was added; the existing document-picker module provides bot
 ## Local document attachments
 
 Chat-specific document selections are local metadata, outside `{model, messages}`. Export includes the generated answer but does not bundle PDF originals, extracted text, indexes or local document IDs. Imported chats start without document attachments; attach files from the local library before asking document questions. See [PDF_RAG.md](PDF_RAG.md).
+
+
+## Delete a conversation
+
+Chat actions include **Delete chat** (a destructive native action on iOS). Each conversation in Android's sidebar and iOS's Conversations list has a separate trash button. Both routes ask for confirmation; the trash button does not select the conversation. Deletion is unavailable while generating, deleting or transferring a chat.
+
+The updated history is saved before the conversation disappears. A failed save keeps its messages and attachments. Deleting the current conversation selects the most recently updated remaining one, or creates a blank chat when none remain. Deleting another conversation preserves the current chat and composer draft. Images referenced only by the deleted conversation are cleaned up; shared images and the document library remain. Old chat migration backups are removed after a successful commit. Cleanup errors are reported separately from save failures.

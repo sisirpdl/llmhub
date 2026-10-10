@@ -169,7 +169,8 @@ export function useAppController() {
     return models.load(model);
   }
   async function transferChat(kind: 'import' | 'export') {
-    if (transferBusy.current || chat.sending || !chat.loaded) return;
+    if (transferBusy.current || chat.sending || chat.deleting || !chat.loaded)
+      return;
     transferBusy.current = true;
     setTransfer(kind);
     models.setExternalUIActive(true);
@@ -205,16 +206,24 @@ export function useAppController() {
     }
   }
   function openChatMenu() {
-    if (chat.sending || !chat.loaded || transferBusy.current) return;
+    if (chat.sending || chat.deleting || !chat.loaded || transferBusy.current)
+      return;
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Export chat', 'Ask your documents'],
+          options: [
+            'Cancel',
+            'Export chat',
+            'Ask your documents',
+            'Delete chat',
+          ],
+          destructiveButtonIndex: 3,
           cancelButtonIndex: 0,
         },
         index => {
           if (index === 1) transferChat('export');
           if (index === 2) setDocumentsVisible(true);
+          if (index === 3) chat.deleteConversation();
         },
       );
     } else setChatMenuVisible(true);

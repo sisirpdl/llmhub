@@ -814,3 +814,132 @@ test('camera and gallery are blocked for a text model', async () => {
   expect(launchCamera).not.toHaveBeenCalled();
   expect(launchImageLibrary).not.toHaveBeenCalled();
 });
+
+test('deletes inactive and last chats durably without changing the current draft or deleting library documents', async () => {
+  const { Alert } = require('react-native') as typeof import('react-native');
+  const alert = jest.spyOn(Alert, 'alert');
+  await ReactTestRenderer.act(async () => {
+    renderers.push(ReactTestRenderer.create(<Harness context={null} />));
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.importDocument({
+      model: 'x',
+      messages: [{ role: 'user', content: 'First' }],
+    });
+  });
+  const first = chat.currentId;
+  await ReactTestRenderer.act(async () => {
+    await chat.importDocument({
+      model: 'x',
+      messages: [{ role: 'user', content: 'Second' }],
+    });
+  });
+  const second = chat.currentId;
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Keep my draft');
+    chat.toggleDocument('document-biology');
+    chat.deleteConversation(first);
+  });
+  const confirm = () =>
+    alert.mock.calls.at(-1)![2]!.find(button => button.text === 'Delete')!
+      .onPress!();
+  expect(chat.history).toHaveLength(2); // Confirmation alone changes nothing.
+  await ReactTestRenderer.act(async () => {
+    await confirm();
+  });
+  expect(chat.currentId).toBe(second);
+  expect(chat.draft).toBe('Keep my draft');
+  expect(chat.documentIds).toEqual(['document-biology']);
+  const saved = JSON.parse(
+    (AsyncStorage.setItem as jest.Mock).mock.calls.at(-1)![1],
+  );
+  expect(saved.conversations.some((c: { id: string }) => c.id === first)).toBe(
+    false,
+  );
+  await ReactTestRenderer.act(async () => chat.deleteConversation());
+  await ReactTestRenderer.act(async () => {
+    await confirm();
+  });
+  expect(chat.history).toHaveLength(0);
+  expect(chat.currentId).not.toBe(second);
+  expect(chat.messageItems).toHaveLength(0);
+  expect(chat.documentIds).toEqual([]);
+  expect(chat.draft).toBe('');
+  expect(chat.deleting).toBe(false);
+  alert.mockRestore();
+});
+
+test('failed deletion keeps messages and skips attachment and migration cleanup', async () => {
+  const { Alert } = require('react-native') as typeof import('react-native');
+  const alert = jest.spyOn(Alert, 'alert');
+  await ReactTestRenderer.act(async () => {
+    renderers.push(ReactTestRenderer.create(<Harness context={null} />));
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.importDocument({
+      model: 'x',
+      messages: [{ role: 'user', content: 'Keep me' }],
+    });
+  });
+  const id = chat.currentId;
+  await ReactTestRenderer.act(async () => chat.deleteConversation());
+  (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Full'));
+  await ReactTestRenderer.act(async () => {
+    await alert.mock.calls.at(-1)![2]!.find(button => button.text === 'Delete')!
+      .onPress!();
+  });
+  expect(chat.currentId).toBe(id);
+  expect(chat.messageItems[0].content).toBe('Keep me');
+  expect(chat.error).toContain('Your messages were kept');
+  expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+  expect(chat.deleting).toBe(false);
+  alert.mockRestore();
+});
+
+test('deletion removes only images no longer referenced by another chat', async () => {
+  const { Alert } = require('react-native') as typeof import('react-native');
+  const fs = require('react-native-fs').default;
+  const { importedConversation, HISTORY_KEY } = require('./conversationStore');
+  const shared = 'file:///docs/chat-images/shared.jpg';
+  const unique = 'file:///docs/chat-images/unique.jpg';
+  const doc = (images: string[]) => ({
+    model: 'x',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Photos' },
+          ...images.map(url => ({ type: 'image_url', image_url: { url } })),
+        ],
+      },
+    ],
+  });
+  const first = importedConversation(doc([shared, unique]));
+  const second = importedConversation(doc([shared]));
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(async key =>
+    key === HISTORY_KEY
+      ? JSON.stringify({ currentId: second.id, conversations: [first, second] })
+      : null,
+  );
+  const alert = jest.spyOn(Alert, 'alert');
+  fs.exists.mockResolvedValue(true);
+  try {
+    await ReactTestRenderer.act(async () => {
+      renderers.push(ReactTestRenderer.create(<Harness context={null} />));
+    });
+    expect(chat.loaded).toBe(true);
+    await ReactTestRenderer.act(async () => chat.deleteConversation(first.id));
+    await ReactTestRenderer.act(async () => {
+      await alert.mock.calls
+        .at(-1)![2]!
+        .find(button => button.text === 'Delete')!.onPress!();
+    });
+    expect(fs.unlink).toHaveBeenCalledWith('/docs/chat-images/unique.jpg');
+    expect(fs.unlink).not.toHaveBeenCalledWith('/docs/chat-images/shared.jpg');
+    expect(chat.currentId).toBe(second.id);
+  } finally {
+    alert.mockRestore();
+    fs.exists.mockResolvedValue(false);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  }
+});

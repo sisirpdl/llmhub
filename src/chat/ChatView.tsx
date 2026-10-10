@@ -49,6 +49,7 @@ export function ChatView({
   const atBottom = useRef(true);
   const [showJump, setShowJump] = useState(false);
   const disabled =
+    chat.deleting ||
     !active ||
     !chat.loaded ||
     (!chat.sending && !chat.draft.trim() && !chat.imageUri);
@@ -287,7 +288,7 @@ export function ChatView({
           accessibilityLabel="Message"
           value={chat.draft}
           onChangeText={chat.setDraft}
-          editable={active && chat.loaded && !chat.sending}
+          editable={active && chat.loaded && !chat.sending && !chat.deleting}
           multiline
           placeholder={
             chat.imageUri ? 'Ask about this image' : 'Type your message here'
@@ -301,7 +302,9 @@ export function ChatView({
               name="image"
               label="Attach image"
               colors={colors}
-              disabled={chat.sending || (!onAttachImage && !active)}
+              disabled={
+                chat.sending || chat.deleting || (!onAttachImage && !active)
+              }
               onPress={onAttachImage || (() => chat.attachImage('gallery'))}
             />
           ) : null}
@@ -309,14 +312,14 @@ export function ChatView({
             name="swap"
             label="Choose chat model"
             colors={colors}
-            disabled={chat.sending}
+            disabled={chat.sending || chat.deleting}
             onPress={onPicker}
           />
           <IconButton
             name="sliders"
             label="Open model settings"
             colors={colors}
-            disabled={chat.sending}
+            disabled={chat.sending || chat.deleting}
             onPress={onSettings || (() => {})}
           />
           <View style={styles.spacer} />

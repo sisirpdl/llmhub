@@ -354,7 +354,8 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
   });
   expect(sheet).toHaveBeenCalledWith(
     {
-      options: ['Cancel', 'Export chat', 'Ask your documents'],
+      options: ['Cancel', 'Export chat', 'Ask your documents', 'Delete chat'],
+      destructiveButtonIndex: 3,
       cancelButtonIndex: 0,
     },
     expect.any(Function),
@@ -447,5 +448,75 @@ test.each(['android', 'ios'] as const)(
     expect(report.diagnostics).toBeUndefined();
     await Renderer.act(async () => renderer!.unmount());
     menu.mockRestore();
+  },
+);
+
+test.each(['android', 'ios'] as const)(
+  '%s can delete from chat actions and the conversation list',
+  async platform => {
+    let renderer: Renderer.ReactTestRenderer;
+    let selection: (index: number) => void = () => {};
+    const sheet = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => {
+        selection = callback;
+      });
+    const confirmation = jest.spyOn(Alert, 'alert');
+    await Renderer.act(async () => {
+      renderer = Renderer.create(<Harness platform={platform} />);
+    });
+    await Renderer.act(async () => {
+      await app.chat.importDocument({
+        model: 'qwen',
+        messages: [{ role: 'user', content: 'Keep this chat' }],
+      });
+    });
+    const first = app.chat.currentId;
+    await Renderer.act(async () => {
+      await app.chat.importDocument({
+        model: 'qwen',
+        messages: [{ role: 'user', content: 'Delete this chat' }],
+      });
+    });
+    const second = app.chat.currentId;
+    await Renderer.act(async () => {
+      app.setHistoryVisible(true);
+    });
+    await Renderer.act(async () => {
+      renderer!.root
+        .findAllByProps({ accessibilityLabel: 'Delete chat: Keep this chat' })
+        .find(node => typeof node.props.onPress === 'function')!
+        .props.onPress();
+    });
+    expect(confirmation).toHaveBeenLastCalledWith(
+      'Delete chat?',
+      expect.any(String),
+      expect.any(Array),
+    );
+    expect(app.chat.currentId).toBe(second);
+    expect(app.chat.history.some(chat => chat.id === first)).toBe(true);
+    await Renderer.act(async () => {
+      app.setHistoryVisible(false);
+      app.setRoute('chat');
+    });
+    await Renderer.act(async () => {
+      renderer!.root
+        .findByProps({ accessibilityLabel: 'Open chat menu' })
+        .props.onPress();
+    });
+    await Renderer.act(async () => {
+      if (platform === 'ios') selection(3);
+      else renderer!.root.findByProps({ label: 'Delete chat' }).props.onPress();
+    });
+    await Renderer.act(async () => {
+      await confirmation.mock.calls
+        .at(-1)![2]!
+        .find(button => button.text === 'Delete')!.onPress!();
+    });
+    expect(app.chat.currentId).toBe(first);
+    expect(app.chat.history.some(chat => chat.id === second)).toBe(false);
+    await Renderer.act(async () => renderer!.unmount());
+    confirmation.mockRestore();
+    sheet.mockRestore();
   },
 );

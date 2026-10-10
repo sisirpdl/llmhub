@@ -76,7 +76,9 @@ export default function IOSAppShell({ app }: { app: AppController }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Rename chat topic"
-              disabled={app.chat.sending || !app.chat.loaded}
+              disabled={
+                app.chat.sending || app.chat.deleting || !app.chat.loaded
+              }
               onPress={() => app.setRenameVisible(true)}
               style={styles.titleRow}
             >
@@ -122,7 +124,9 @@ export default function IOSAppShell({ app }: { app: AppController }) {
               label="New conversation"
               colors={colors}
               color={colors.accent}
-              disabled={app.chat.sending || !app.chat.loaded}
+              disabled={
+                app.chat.sending || app.chat.deleting || !app.chat.loaded
+              }
               onPress={app.chat.newConversation}
             />
             <IconButton
@@ -131,7 +135,10 @@ export default function IOSAppShell({ app }: { app: AppController }) {
               colors={colors}
               color={colors.accent}
               disabled={
-                app.chat.sending || !app.chat.loaded || Boolean(app.transfer)
+                app.chat.sending ||
+                app.chat.deleting ||
+                !app.chat.loaded ||
+                Boolean(app.transfer)
               }
               onPress={app.openChatMenu}
             />
