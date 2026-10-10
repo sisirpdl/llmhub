@@ -129,13 +129,6 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                 onPress={app.openChatMenu}
               />
             </>
-          ) : app.route === 'models' ? (
-            <IconButton
-              name="sliders"
-              label="Search and filter models"
-              colors={colors}
-              onPress={() => app.setDiscoveryVisible(true)}
-            />
           ) : null}
         </View>
       </View>
