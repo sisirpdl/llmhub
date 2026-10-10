@@ -14,7 +14,7 @@ import {
   reportSubmissionConfigured,
   clearPendingIssueSubmission,
 } from './submitIssueReport';
-import { Button, IconButton, Sheet } from '../ui/Controls';
+import { Button, Sheet } from '../ui/Controls';
 import type { Colors } from '../ui/theme';
 import {
   buildIssueReport,
@@ -128,39 +128,6 @@ export function IssueReportSheet({
       [
         { text: 'Keep editing', style: 'cancel' },
         { text: 'Discard changes', style: 'destructive', onPress: onClose },
-      ],
-    );
-  }
-  function clear() {
-    if (lock.current || loading) return;
-    Alert.alert(
-      'Discard draft?',
-      'Delete the draft saved on this device and clear this form.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Discard draft',
-          style: 'destructive',
-          onPress: async () => {
-            if (lock.current) return;
-            lock.current = true;
-            setBusy(true);
-            try {
-              await clearIssueDraft();
-              await clearPendingIssueSubmission();
-              setDraft(emptyIssueDraft());
-              changed.current = false;
-              failedRestore.current = false;
-              setError('');
-              setNotice('Draft cleared.');
-            } catch {
-              setError('Unable to clear the saved report.');
-            } finally {
-              lock.current = false;
-              setBusy(false);
-            }
-          },
-        },
       ],
     );
   }
@@ -282,16 +249,9 @@ export function IssueReportSheet({
         />
         {!reportSubmissionConfigured() ? (
           <Text style={{ color: colors.muted }}>
-            Report submission isn't configured yet. You can save your draft.
+            Support is unavailable in this build. You can save your draft.
           </Text>
         ) : null}
-        <IconButton
-          name="more"
-          label="Draft actions"
-          colors={colors}
-          onPress={clear}
-          disabled={busy || loading}
-        />
       </View>
     </Sheet>
   );
