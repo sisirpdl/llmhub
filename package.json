@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
+    "test:issue-endpoint": "node --test scripts/issue-endpoint.test.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,0 +1,5 @@
+project_id = "llmhub"
+
+# The handler checks the configured publishable key. This app has no user login/JWT.
+[functions.submit-issue-report]
+verify_jwt = false

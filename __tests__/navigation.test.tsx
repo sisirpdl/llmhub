@@ -1,13 +1,13 @@
 import React from 'react';
 import Renderer from 'react-test-renderer';
+import { submitIssueReport } from '../src/support/submitIssueReport';
+jest.mock('../src/support/submitIssueReport', () => ({
+  submitIssueReport: jest.fn().mockResolvedValue('receipt'),
+  reportSubmissionConfigured: () => true,
+  clearPendingIssueSubmission: jest.fn(),
+}));
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  Platform,
-  ActionSheetIOS,
-  Alert,
-  TextInput,
-  Share,
-} from 'react-native';
+import { Platform, ActionSheetIOS, Alert, TextInput } from 'react-native';
 import { exportChat, importChatFile } from '../src/chat/chatTransfer';
 import { useAppController, type AppController } from '../src/app/AppController';
 import AndroidAppShell from '../src/app/AppShell.android';
@@ -39,6 +39,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: jest.fn().mockResolvedValue(null),
     setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
   },
 }));
 jest.mock('../src/chat/chatTransfer', () => ({
@@ -302,11 +303,10 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
 });
 
 test.each(['android', 'ios'] as const)(
-  '%s opens report form and saves/shares only on request',
+  '%s opens report form and saves/submits only on request',
   async platform => {
-    const sharing = jest
-      .spyOn(Share, 'share')
-      .mockResolvedValue({ action: Share.sharedAction });
+    const submitting = submitIssueReport as jest.Mock;
+    submitting.mockClear();
     let renderer: Renderer.ReactTestRenderer;
     await Renderer.act(async () => {
       renderer = Renderer.create(<Harness platform={platform} />);
@@ -325,7 +325,7 @@ test.each(['android', 'ios'] as const)(
         .props.onPress();
     });
     expect(app.issueReportVisible).toBe(true);
-    expect(sharing).not.toHaveBeenCalled();
+    expect(submitting).not.toHaveBeenCalled();
     await Renderer.act(async () => {
       const fields = renderer!.root.findAllByType(TextInput);
       fields
@@ -342,16 +342,39 @@ test.each(['android', 'ios'] as const)(
       '@llmhub/issue-report-draft-v1',
       expect.stringContaining('Generation failed'),
     );
-    expect(sharing).not.toHaveBeenCalled();
+    expect(submitting).not.toHaveBeenCalled();
+    submitting.mockRejectedValueOnce(
+      new Error('Network unavailable; draft kept.'),
+    );
     await Renderer.act(async () => {
       await renderer!.root
-        .findByProps({ label: 'Share report' })
+        .findByProps({ label: 'Submit report' })
         .props.onPress();
     });
-    const report = JSON.parse(sharing.mock.calls[0][0].message!);
+    expect(
+      renderer!.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Issue title')!.props
+        .value,
+    ).toBe('Generation failed');
+    await Renderer.act(async () => {
+      await renderer!.root
+        .findByProps({ label: 'Submit report' })
+        .props.onPress();
+    });
+    expect(submitting).toHaveBeenCalledTimes(2);
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+      '@llmhub/issue-report-draft-v1',
+    );
+    expect(
+      renderer!.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Issue title')!.props
+        .value,
+    ).toBe('');
+    const report = submitting.mock.calls[0][0];
     expect(report.title).toBe('Generation failed');
     expect(report.diagnostics).toBeUndefined();
     await Renderer.act(async () => renderer!.unmount());
-    sharing.mockRestore();
   },
 );

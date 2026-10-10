@@ -38,7 +38,7 @@ export function parseIssueDraft(value: unknown): IssueDraft {
     typeof draft.includeDiagnostics !== 'boolean'
   )
     throw new Error(
-      'The saved report could not be restored. Clear it to start again.',
+      'The saved report could not be restored. Discard it from Draft actions to start again.',
     );
   return {
     title: draft.title,

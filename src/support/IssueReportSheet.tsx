@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Platform,
-  Share,
   StyleSheet,
   Switch,
   Text,
@@ -10,7 +9,12 @@ import {
   View,
 } from 'react-native';
 import { version } from '../../package.json';
-import { Button, Sheet } from '../ui/Controls';
+import {
+  submitIssueReport,
+  reportSubmissionConfigured,
+  clearPendingIssueSubmission,
+} from './submitIssueReport';
+import { Button, IconButton, Sheet } from '../ui/Controls';
 import type { Colors } from '../ui/theme';
 import {
   buildIssueReport,
@@ -73,14 +77,14 @@ export function IssueReportSheet({
     changed.current = true;
     setNotice('');
   }
-  async function persist(share: boolean) {
+  async function persist(submit: boolean) {
     if (lock.current || loading || failedRestore.current) return;
     lock.current = true;
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      const report = share
+      const report = submit
         ? buildIssueReport(draft, {
             appVersion: version,
             platform: Platform.OS,
@@ -90,16 +94,22 @@ export function IssueReportSheet({
       await saveIssueDraft(draft);
       changed.current = false;
       if (report) {
-        await Share.share({
-          title: 'LLMHub issue report',
-          message: JSON.stringify(report, null, 2),
-        });
-        setNotice('Draft saved. Sharing does not submit it to LLMHub.');
+        await submitIssueReport(report);
+        setNotice('Report submitted. Thank you.');
+        try {
+          await clearIssueDraft();
+          await clearPendingIssueSubmission();
+          setDraft(emptyIssueDraft());
+        } catch {
+          setNotice('Report submitted. The saved draft could not be cleared.');
+        }
       } else
         setNotice('Draft saved on this device. It has not been submitted.');
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : 'Unable to save or share this report.',
+        e instanceof Error
+          ? e.message
+          : 'Unable to save or submit this report. Your draft was kept.',
       );
     } finally {
       lock.current = false;
@@ -124,12 +134,12 @@ export function IssueReportSheet({
   function clear() {
     if (lock.current || loading) return;
     Alert.alert(
-      'Clear report?',
+      'Discard draft?',
       'Delete the draft saved on this device and clear this form.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Clear report',
+          text: 'Discard draft',
           style: 'destructive',
           onPress: async () => {
             if (lock.current) return;
@@ -137,6 +147,7 @@ export function IssueReportSheet({
             setBusy(true);
             try {
               await clearIssueDraft();
+              await clearPendingIssueSubmission();
               setDraft(emptyIssueDraft());
               changed.current = false;
               failedRestore.current = false;
@@ -171,8 +182,8 @@ export function IssueReportSheet({
     >
       <View style={styles.content}>
         <Text style={{ color: colors.muted }}>
-          Describe what went wrong. Reports stay on this device until you choose
-          to share them. Direct submission is not available yet.
+          Submitting sends this form and any opted-in app details to LLMHub
+          support. Drafts stay on this device.
         </Text>
         <Text style={{ color: colors.text }}>Title</Text>
         <TextInput
@@ -258,17 +269,25 @@ export function IssueReportSheet({
           disabled={disabled}
         />
         <Button
-          label="Share report"
+          label="Submit report"
           icon="external"
           colors={colors}
           onPress={() => persist(true)}
           disabled={
-            disabled || !draft.title.trim() || !draft.description.trim()
+            disabled ||
+            !reportSubmissionConfigured() ||
+            !draft.title.trim() ||
+            !draft.description.trim()
           }
         />
-        <Button
-          label="Clear report"
-          icon="trash"
+        {!reportSubmissionConfigured() ? (
+          <Text style={{ color: colors.muted }}>
+            Report submission isn't configured yet. You can save your draft.
+          </Text>
+        ) : null}
+        <IconButton
+          name="more"
+          label="Draft actions"
           colors={colors}
           onPress={clear}
           disabled={busy || loading}

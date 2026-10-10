@@ -14,7 +14,7 @@ Send an installed model to another phone on the same Wi-Fi from Models, then cho
 
 ## Report an issue
 
-Open **Report an issue** from the Android sidebar or Settings. Save a local draft or share a JSON report, with optional basic app details. Direct backend submission is not connected yet. See [docs/ISSUE_REPORTS.md](docs/ISSUE_REPORTS.md) for the future Supabase integration.
+Open **Report an issue** from the Android sidebar or Settings. Save a local draft or submit to the configured Supabase Edge Function, with optional basic app details. Failed submissions keep the draft, and retries avoid duplicate reports. Submission stays disabled until the backend is configured. See [docs/ISSUE_REPORTS.md](docs/ISSUE_REPORTS.md) for setup and verification.
 
 ## Native acceleration assets
 
