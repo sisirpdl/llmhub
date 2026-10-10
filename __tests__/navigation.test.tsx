@@ -1,5 +1,6 @@
 import React from 'react';
 import Renderer from 'react-test-renderer';
+import { DocumentLibraryView } from '../src/documents/DocumentLibraryView';
 import { submitIssueReport } from '../src/support/submitIssueReport';
 jest.mock('../src/support/submitIssueReport', () => ({
   submitIssueReport: jest.fn().mockResolvedValue('receipt'),
@@ -74,7 +75,7 @@ test('Android drawer navigates to chat and exposes a model picker', async () => 
     .find(node =>
       node
         .findAllByType('Text' as never)
-        .some(text => text.props.children === 'Chat'),
+        .some(text => text.props.children === 'New chat'),
     );
   expect(destination).toBeDefined();
   await Renderer.act(async () => {
@@ -89,8 +90,13 @@ test('Android drawer navigates to chat and exposes a model picker', async () => 
   expect(app.pickerVisible).toBe(true);
   await Renderer.act(async () => renderer!.unmount());
 });
-test('iOS uses bottom tabs and conversation history instead of a drawer', async () => {
+test('iOS keeps three tabs and opens conversations from its native navigation menu', async () => {
   let renderer: Renderer.ReactTestRenderer;
+  const menu = jest
+    .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+    .mockImplementation((options, callback) =>
+      callback(options.options.indexOf('Conversations')),
+    );
   await Renderer.act(async () => {
     renderer = Renderer.create(<Harness platform="ios" />);
   });
@@ -101,11 +107,6 @@ test('iOS uses bottom tabs and conversation history instead of a drawer', async 
         .map(node => node.props.accessibilityLabel),
     ).size,
   ).toBe(3);
-  expect(
-    renderer!.root.findAllByProps({
-      accessibilityLabel: 'Open navigation menu',
-    }),
-  ).toHaveLength(0);
   await Renderer.act(async () => {
     renderer!.root
       .findAllByProps({ accessibilityRole: 'tab' })
@@ -115,11 +116,12 @@ test('iOS uses bottom tabs and conversation history instead of a drawer', async 
   expect(app.route).toBe('chat');
   await Renderer.act(async () => {
     renderer!.root
-      .findByProps({ accessibilityLabel: 'Show conversations' })
+      .findByProps({ accessibilityLabel: 'Open navigation menu' })
       .props.onPress();
   });
   expect(app.historyVisible).toBe(true);
   await Renderer.act(async () => renderer!.unmount());
+  menu.mockRestore();
 });
 
 test.each(['android', 'ios'] as const)(
@@ -161,72 +163,92 @@ test.each(['android', 'ios'] as const)(
   },
 );
 
-test('Android chat menu exports, sidebar imports, and App Info lives at the end of Settings', async () => {
-  let renderer: Renderer.ReactTestRenderer;
-  await Renderer.act(async () => {
-    renderer = Renderer.create(<Harness platform="android" />);
-  });
-  await Renderer.act(async () => {
-    app.setRoute('chat');
-  });
-  expect(
-    renderer!.root.findAllByProps({ accessibilityLabel: 'Open chat settings' }),
-  ).toHaveLength(0);
-  expect(
-    renderer!.root.findByProps({ accessibilityLabel: 'Open chat menu' }).props
-      .onPress,
-  ).toBe(app.openChatMenu);
-  await Renderer.act(async () => {
-    app.setChatMenuVisible(true);
-  });
-  expect(
-    renderer!.root.findByProps({ accessibilityLabel: 'Export chat' }),
-  ).toBeDefined();
-  expect(app.chatSettingsVisible).toBe(false);
-  await Renderer.act(async () => {
-    app.setChatMenuVisible(false);
-    renderer!.root
-      .findByProps({ accessibilityLabel: 'Open navigation menu' })
-      .props.onPress();
-  });
-  expect(
-    renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
-  ).toBeDefined();
-  expect(
-    renderer!.root
+test.each(['android', 'ios'] as const)(
+  '%s groups Settings and opens the library without attaching files',
+  async platform => {
+    let renderer: Renderer.ReactTestRenderer;
+    let selection = 'Documents';
+    const menu = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((options, callback) =>
+        callback(options.options.indexOf(selection)),
+      );
+    await Renderer.act(async () => {
+      renderer = Renderer.create(<Harness platform={platform} />);
+    });
+    await Renderer.act(async () => {
+      renderer!.root
+        .findByProps({ accessibilityLabel: 'Open navigation menu' })
+        .props.onPress();
+    });
+    if (platform === 'android') {
+      expect(
+        renderer!.root.findAllByProps({ accessibilityLabel: 'Import chat' }),
+      ).toHaveLength(0);
+      await Renderer.act(async () => {
+        renderer!.root
+          .findByProps({ accessibilityLabel: 'Documents' })
+          .props.onPress();
+      });
+    }
+    expect(app.route).toBe('documents');
+    const library = renderer!.root
+      .findAllByType(DocumentLibraryView)
+      .find(node => node.props.onToggle === undefined);
+    expect(library).toBeDefined();
+    expect(library!.props.selected).toBeUndefined();
+    expect(app.chat.documentIds).toEqual([]);
+    await Renderer.act(async () => {
+      app.setRoute('chat');
+      app.setDocumentsVisible(true);
+    });
+    expect(renderer!.root.findByType(DocumentLibraryView).props.onToggle).toBe(
+      app.chat.toggleDocument,
+    );
+    await Renderer.act(async () => {
+      app.setDocumentsVisible(false);
+      selection = 'Nearby sharing';
+      renderer!.root
+        .findByProps({ accessibilityLabel: 'Open navigation menu' })
+        .props.onPress();
+    });
+    if (platform === 'android')
+      await Renderer.act(async () => {
+        renderer!.root
+          .findByProps({ accessibilityLabel: 'Nearby sharing' })
+          .props.onPress();
+      });
+    expect(app.route).toBe('nearby');
+    expect(renderer!.root.findByProps({ label: 'Send model' })).toBeDefined();
+    expect(
+      renderer!.root.findByProps({ label: 'Receive model' }),
+    ).toBeDefined();
+    await Renderer.act(async () => {
+      app.setRoute('settings');
+    });
+    expect(
+      renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
+    ).toBeDefined();
+    const labels = renderer!.root
       .findAllByType('Text' as never)
-      .filter(n => n.props.children === 'App Info'),
-  ).toHaveLength(0);
-  await Renderer.act(async () => {
-    app.setRoute('settings');
-  });
-  const labels = renderer!.root
-    .findAllByType('Text' as never)
-    .map(n => n.props.children);
-  expect(labels.indexOf('App Info')).toBeGreaterThan(labels.indexOf('Privacy'));
-  await Renderer.act(async () => renderer!.unmount());
-});
+      .map(node => node.props.children);
+    expect(labels.indexOf('General')).toBeLessThan(
+      labels.indexOf('Host & Connect'),
+    );
+    expect(labels.indexOf('Host & Connect')).toBeLessThan(
+      labels.indexOf('Model defaults'),
+    );
+    expect(labels.indexOf('About LLMHub')).toBeGreaterThan(
+      labels.indexOf('Model defaults'),
+    );
+    expect(labels).not.toContain('Privacy');
+    expect(labels).not.toContain('Support');
+    await Renderer.act(async () => renderer!.unmount());
+    menu.mockRestore();
+  },
+);
 
-test('iOS exposes import in conversation history and retains only three tabs', async () => {
-  let renderer: Renderer.ReactTestRenderer;
-  await Renderer.act(async () => {
-    renderer = Renderer.create(<Harness platform="ios" />);
-  });
-  await Renderer.act(async () => {
-    app.setHistoryVisible(true);
-  });
-  expect(
-    renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
-  ).toBeDefined();
-  expect(
-    renderer!.root
-      .findAllByProps({ accessibilityRole: 'tab' })
-      .every(n => n.props.accessibilityLabel !== 'App Info'),
-  ).toBe(true);
-  await Renderer.act(async () => renderer!.unmount());
-});
-
-test('Android export saves the current canonical chat; sidebar import opens a new conversation', async () => {
+test('Android export saves the current canonical chat; Settings import opens a new conversation', async () => {
   let renderer: Renderer.ReactTestRenderer;
   await Renderer.act(async () => {
     renderer = Renderer.create(<Harness platform="android" />);
@@ -258,7 +280,12 @@ test('Android export saves the current canonical chat; sidebar import opens a ne
     images: [],
   });
   await Renderer.act(async () => {
-    await app.importChat();
+    app.setRoute('settings');
+  });
+  await Renderer.act(async () => {
+    await renderer!.root
+      .findByProps({ accessibilityLabel: 'Import chat' })
+      .props.onPress();
   });
   expect(app.route).toBe('chat');
   expect(app.chat.title).toBe('Imported topic');
@@ -288,7 +315,7 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
   });
   expect(sheet).toHaveBeenCalledWith(
     {
-      options: ['Cancel', 'Export chat', 'Ask your docs'],
+      options: ['Cancel', 'Export chat', 'Ask your documents'],
       cancelButtonIndex: 0,
     },
     expect.any(Function),
@@ -307,23 +334,27 @@ test.each(['android', 'ios'] as const)(
   async platform => {
     const submitting = submitIssueReport as jest.Mock;
     submitting.mockClear();
+    const menu = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((options, callback) =>
+        callback(options.options.indexOf('Report an issue')),
+      );
     let renderer: Renderer.ReactTestRenderer;
     await Renderer.act(async () => {
       renderer = Renderer.create(<Harness platform={platform} />);
     });
     await Renderer.act(async () => {
-      if (platform === 'android')
-        renderer!.root
-          .findByProps({ accessibilityLabel: 'Open navigation menu' })
-          .props.onPress();
-      else app.setRoute('settings');
-    });
-    await Renderer.act(async () => {
       renderer!.root
-        .findAllByProps({ accessibilityLabel: 'Report an issue' })
-        .find(node => typeof node.props.onPress === 'function')!
+        .findByProps({ accessibilityLabel: 'Open navigation menu' })
         .props.onPress();
     });
+    if (platform === 'android')
+      await Renderer.act(async () => {
+        renderer!.root
+          .findAllByProps({ accessibilityLabel: 'Report an issue' })
+          .find(node => typeof node.props.onPress === 'function')!
+          .props.onPress();
+      });
     expect(app.issueReportVisible).toBe(true);
     expect(submitting).not.toHaveBeenCalled();
     await Renderer.act(async () => {
@@ -376,5 +407,6 @@ test.each(['android', 'ios'] as const)(
     expect(report.title).toBe('Generation failed');
     expect(report.diagnostics).toBeUndefined();
     await Renderer.act(async () => renderer!.unmount());
+    menu.mockRestore();
   },
 );

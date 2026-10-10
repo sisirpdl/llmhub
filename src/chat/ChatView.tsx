@@ -215,7 +215,7 @@ export function ChatView({
         {onDocuments ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Ask your docs"
+            accessibilityLabel="Ask your documents"
             accessibilityState={{ disabled: chat.sending || !chat.loaded }}
             disabled={chat.sending || !chat.loaded}
             onPress={onDocuments}
@@ -231,7 +231,7 @@ export function ChatView({
                 color: chat.documentIds.length ? colors.green : colors.muted,
               }}
             >
-              Ask your docs · {chat.documentIds.length} connected
+              Ask your documents · {chat.documentIds.length} connected
             </Text>
           </Pressable>
         ) : null}

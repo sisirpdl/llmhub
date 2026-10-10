@@ -73,7 +73,7 @@ export function DocumentLibraryView({
         label={
           controller.working
             ? controller.progress || 'Working…'
-            : 'Add document'
+            : 'Import documents'
         }
         icon="plus"
         colors={colors}
@@ -99,7 +99,7 @@ export function DocumentLibraryView({
           key={document.id}
           style={[styles.row, { borderColor: colors.border }]}
         >
-          <Icon name="models" color={colors.accent} size={20} />
+          <Icon name="document" color={colors.accent} size={20} />
           <Pressable
             accessibilityRole={onToggle ? 'checkbox' : 'text'}
             accessibilityLabel={`${document.name}${

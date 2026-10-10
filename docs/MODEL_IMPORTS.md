@@ -101,9 +101,9 @@ This UI change keeps the current Qwen2.5 1.5B and SmolVLM Instruct packages; pro
 
 ## Chat interchange and local documents
 
-Model-file imports are separate from chat import/export. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md) for the single native OpenAI JSON format, portable images, migration and file controls. Importing a chat does not download or load its named model. App Info/diagnostics now live at the end of Settings.
+Model-file imports are separate from chat import/export. See [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md) for the single native OpenAI JSON format, portable images, migration and file controls. Importing a chat does not download or load its named model. About LLMHub/diagnostics now live at the end of Settings.
 
-Settings → Manage local documents imports PDF/Markdown/TXT into a shared private library. Ask your docs selects which files each chat searches; importing from a chat attaches the new file there. PDF text extraction, page labels and cached keyword indexes are implemented. OCR, embeddings and validated citations remain planned. See [PDF_RAG.md](PDF_RAG.md) for rebuild steps, limits and checks.
+Documents in the main navigation imports PDF/Markdown/TXT into a shared private library. Ask your documents selects which files each chat searches; importing from a chat attaches the new file there. PDF text extraction, page labels and cached keyword indexes are implemented. OCR, embeddings and validated citations remain planned. See [PDF_RAG.md](PDF_RAG.md) for rebuild steps, limits and checks.
 
 ## Hugging Face authentication
 

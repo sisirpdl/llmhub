@@ -16,7 +16,7 @@ import { darkColors, lightColors, type Appearance } from '../ui/theme';
 import { useNearbyTransfer } from '../nearby/useNearbyTransfer';
 import { useLan } from '../lan/useLan';
 import { useDocumentIndex } from '../documents/useDocumentIndex';
-export type Route = 'chat' | 'models' | 'settings';
+export type Route = 'chat' | 'models' | 'documents' | 'nearby' | 'settings';
 export function useAppController() {
   const systemDark = useColorScheme() === 'dark';
   const [appearance, setAppearance] = useState<Appearance>('dark');
@@ -202,7 +202,7 @@ export function useAppController() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Export chat', 'Ask your docs'],
+          options: ['Cancel', 'Export chat', 'Ask your documents'],
           cancelButtonIndex: 0,
         },
         index => {

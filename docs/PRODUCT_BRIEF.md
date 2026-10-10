@@ -21,7 +21,7 @@ This document records the implemented capabilities and product direction. Techni
 | LAN hosting preview | Manual address/key pairing, authenticated OpenAI-compatible text chat, foreground host/client controls. | Native builds/two-device validation, TLS/pinned identity, streaming and discovery. |
 | Presentation | Separate Android/iOS shells and discovery controls. | Native-stack navigation, iOS title/back behavior and Android FAB/ripple refinement. |
 
-Chat import/export and its privacy, format and media limits are documented in [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md). App Info and engine diagnostics are the final section of Settings; iOS has Chat, Models and Settings tabs.
+Chat import/export and its privacy, format and media limits are documented in [CHAT_IMPORT_EXPORT.md](CHAT_IMPORT_EXPORT.md). About LLMHub and engine diagnostics are the final section of Settings; iOS has Chat, Models and Settings tabs.
 
 The current starter packages remain Qwen2.5 1.5B Instruct Q4_K_M and SmolVLM Instruct with its projector. Qwen3 1.7B and SmolVLM 500M are evaluation candidates, not promoted defaults. See [MODEL_IMPORTS.md](MODEL_IMPORTS.md).
 

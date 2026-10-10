@@ -1,5 +1,12 @@
 import { modelLabel } from '../models/modelLabels';
-import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import {
+  ActionSheetIOS,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppController, Route } from './AppController';
 import { ScreenContent } from './Screens';
@@ -13,6 +20,36 @@ const tabs: { route: Route; label: string; icon: IconName }[] = [
 export default function IOSAppShell({ app }: { app: AppController }) {
   const insets = useSafeAreaInsets();
   const { colors } = app;
+  function openNavigation() {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [
+          'Cancel',
+          'Conversations',
+          'Models',
+          'Documents',
+          'Nearby sharing',
+          'Settings',
+          'Report an issue',
+        ],
+        cancelButtonIndex: 0,
+      },
+      index => {
+        if (index === 1) app.setHistoryVisible(true);
+        if (index === 2) app.setRoute('models');
+        if (index === 3) app.setRoute('documents');
+        if (index === 4) app.setRoute('nearby');
+        if (index === 5) app.setRoute('settings');
+        if (index === 6) app.setIssueReportVisible(true);
+      },
+    );
+  }
+  const title =
+    app.route === 'documents'
+      ? 'Documents'
+      : app.route === 'nearby'
+      ? 'Nearby sharing'
+      : tabs.find(tab => tab.route === app.route)?.label;
   return (
     <View
       style={[
@@ -27,17 +64,13 @@ export default function IOSAppShell({ app }: { app: AppController }) {
           { borderColor: colors.border, backgroundColor: colors.background },
         ]}
       >
-        {app.route === 'chat' ? (
-          <IconButton
-            name="clock"
-            label="Show conversations"
-            colors={colors}
-            color={colors.accent}
-            onPress={() => app.setHistoryVisible(true)}
-          />
-        ) : (
-          <View style={styles.spacer} />
-        )}
+        <IconButton
+          name="menu"
+          label="Open navigation menu"
+          colors={colors}
+          color={colors.accent}
+          onPress={openNavigation}
+        />
         <View style={styles.heading}>
           {app.route === 'chat' ? (
             <Pressable
@@ -60,7 +93,7 @@ export default function IOSAppShell({ app }: { app: AppController }) {
               accessibilityRole="header"
               style={[styles.title, { color: colors.text }]}
             >
-              {tabs.find(tab => tab.route === app.route)?.label}
+              {title}
             </Text>
           )}
           {app.route === 'chat' ? (
@@ -112,7 +145,7 @@ export default function IOSAppShell({ app }: { app: AppController }) {
           accessibilityRole="header"
           style={[styles.largeTitle, { color: colors.text }]}
         >
-          {tabs.find(tab => tab.route === app.route)?.label}
+          {title}
         </Text>
       ) : null}
       <ScreenContent app={app} />

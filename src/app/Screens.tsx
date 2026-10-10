@@ -54,6 +54,35 @@ export function ScreenContent({ app }: { app: AppController }) {
           onShare={app.nearby.send}
           onReceive={app.nearby.openReceive}
         />
+      ) : app.route === 'documents' ? (
+        <ScrollView contentContainerStyle={styles.page}>
+          <DocumentLibraryView
+            controller={app.documents}
+            colors={colors}
+            disabled={chat.sending || Boolean(app.transfer)}
+            onPickerStateChange={models.setExternalUIActive}
+          />
+        </ScrollView>
+      ) : app.route === 'nearby' ? (
+        <ScrollView contentContainerStyle={styles.page}>
+          <Text style={[styles.paragraph, { color: colors.muted }]}>
+            Send or receive model files over local Wi-Fi. To send, choose an
+            installed model and tap Share model.
+          </Text>
+          <Button
+            label="Send model"
+            icon="external"
+            colors={colors}
+            onPress={() => app.setRoute('models')}
+          />
+          <Button
+            label="Receive model"
+            icon="download"
+            colors={colors}
+            onPress={app.nearby.openReceive}
+            disabled={app.nearby.busy || app.nearby.working}
+          />
+        </ScrollView>
       ) : app.route === 'chat' ? (
         <ChatView
           lanStatus={
@@ -108,8 +137,8 @@ export function ScreenContent({ app }: { app: AppController }) {
           }}
         />
         <Button
-          label="Ask your docs"
-          icon="models"
+          label="Ask your documents"
+          icon="document"
           colors={colors}
           disabled={chat.sending}
           onPress={() => {
@@ -181,7 +210,7 @@ export function ScreenContent({ app }: { app: AppController }) {
       <Sheet
         visible={app.documentsVisible}
         onClose={() => app.setDocumentsVisible(false)}
-        title={app.route === 'chat' ? 'Ask your docs' : 'Document library'}
+        title={app.route === 'chat' ? 'Ask your documents' : 'Document library'}
         colors={colors}
       >
         <DocumentLibraryView
@@ -206,15 +235,6 @@ export function History({
   const { colors, chat } = app;
   return (
     <View style={styles.history}>
-      {Platform.OS === 'ios' ? (
-        <Button
-          label="Import chat"
-          icon="download"
-          colors={colors}
-          disabled={chat.sending || !chat.loaded || Boolean(app.transfer)}
-          onPress={app.importChat}
-        />
-      ) : null}
       <Pressable
         accessibilityRole="button"
         disabled={chat.sending}
@@ -286,19 +306,13 @@ function SettingsScreen({ app }: { app: AppController }) {
       contentContainerStyle={styles.page}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.section, { color: colors.accent }]}>
-        Hugging Face
+      <Text
+        accessibilityRole="header"
+        style={[styles.section, { color: colors.accent }]}
+      >
+        General
       </Text>
-      <HuggingFaceTokenSettings
-        token={app.models.hfToken}
-        onApply={app.models.setHfToken}
-        colors={colors}
-      />
-      <Text style={[styles.section, { color: colors.accent }]}>
-        Local Wi-Fi · Preview
-      </Text>
-      <LanSettings app={app} />
-      <Text style={[styles.section, { color: colors.accent }]}>Appearance</Text>
+      <Text style={[styles.caption, { color: colors.muted }]}>Appearance</Text>
       <View
         style={[
           styles.group,
@@ -327,7 +341,31 @@ function SettingsScreen({ app }: { app: AppController }) {
           </Pressable>
         ))}
       </View>
-      <Text style={[styles.section, { color: colors.accent }]}>Generation</Text>
+      <Button
+        label="Import chat"
+        icon="download"
+        colors={colors}
+        disabled={app.chat.sending || !app.chat.loaded || Boolean(app.transfer)}
+        onPress={app.importChat}
+      />
+      <Text
+        accessibilityRole="header"
+        style={[styles.section, { color: colors.accent }]}
+      >
+        Host &amp; Connect
+      </Text>
+      <LanSettings app={app} />
+      <Text
+        accessibilityRole="header"
+        style={[styles.section, { color: colors.accent }]}
+      >
+        Model defaults
+      </Text>
+      <HuggingFaceTokenSettings
+        token={app.models.hfToken}
+        onApply={app.models.setHfToken}
+        colors={colors}
+      />
       <View
         style={[
           styles.group,
@@ -350,69 +388,6 @@ function SettingsScreen({ app }: { app: AppController }) {
           onPress={() => app.setChatSettingsVisible(true)}
         />
       </View>
-      <Text style={[styles.section, { color: colors.accent }]}>Knowledge</Text>
-      <View
-        style={[
-          styles.group,
-          styles.padded,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.paragraph, { color: colors.muted }]}>
-          Import PDFs, Markdown, or text files. Attach documents to each chat to
-          search them locally. In LAN mode, retrieved passages are sent to your
-          host.
-        </Text>
-        <Button
-          label="Manage local documents"
-          icon="models"
-          colors={colors}
-          onPress={() => app.setDocumentsVisible(true)}
-        />
-      </View>
-      <Text style={[styles.section, { color: colors.accent }]}>Privacy</Text>
-      <View
-        style={[
-          styles.group,
-          styles.padded,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <View style={styles.privacyTitle}>
-          <Icon name="shield" color={colors.green} />
-          <Text style={[styles.rowText, { color: colors.text }]}>
-            Private by default
-          </Text>
-        </View>
-        <Text style={[styles.paragraph, { color: colors.muted }]}>
-          Models and conversations are stored on this device. No account, cloud
-          inference, or chat telemetry. Optional LAN mode sends messages to your
-          chosen host phone. Model downloads need internet.
-        </Text>
-      </View>
-      <Text style={[styles.caption, styles.footnote, { color: colors.muted }]}>
-        Leaving the app unloads the model to protect memory. Load it again when
-        you return. Vision support is a preview and requires a compatible
-        projector.
-      </Text>
-      <Text style={[styles.section, { color: colors.accent }]}>Support</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Report an issue"
-        onPress={() => app.setIssueReportVisible(true)}
-        style={[
-          styles.row,
-          styles.group,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <Icon name="issue" color={colors.accent} size={20} />
-        <Text
-          style={[styles.rowText, styles.supportLabel, { color: colors.text }]}
-        >
-          Report an issue
-        </Text>
-      </Pressable>
       <InfoSection app={app} />
     </ScrollView>
   );
@@ -447,7 +422,9 @@ function InfoSection({ app }: { app: AppController }) {
   ];
   return (
     <View>
-      <Text style={[styles.section, { color: colors.accent }]}>App Info</Text>
+      <Text style={[styles.section, { color: colors.accent }]}>
+        About LLMHub
+      </Text>
       <View style={styles.brand}>
         <Icon name="chat" color={colors.accent} size={44} />
         <Text style={[styles.brandName, { color: colors.text }]}>LLMHub</Text>
@@ -559,7 +536,6 @@ export function Onboarding({
   );
 }
 const styles = StyleSheet.create({
-  supportLabel: { marginLeft: 12 },
   fill: { flex: 1 },
   banner: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16 },
   bannerText: { flex: 1, fontSize: 13, lineHeight: 19 },
@@ -583,7 +559,6 @@ const styles = StyleSheet.create({
   caption: { fontSize: 13, lineHeight: 20, marginTop: 4 },
   paragraph: { fontSize: 14, lineHeight: 23, marginTop: 12 },
   footnote: { marginTop: 16 },
-  privacyTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   diagnostic: {
     paddingHorizontal: 18,
     paddingVertical: 12,

@@ -17,8 +17,10 @@ import { History, ScreenContent } from './Screens';
 import { Icon, type IconName } from '../ui/Icon';
 import { IconButton } from '../ui/Controls';
 const destinations: { route: Route; title: string; icon: IconName }[] = [
-  { route: 'chat', title: 'Chat', icon: 'chat' },
+  { route: 'chat', title: 'New chat', icon: 'edit' },
   { route: 'models', title: 'Models', icon: 'models' },
+  { route: 'documents', title: 'Documents', icon: 'document' },
+  { route: 'nearby', title: 'Nearby sharing', icon: 'connected' },
   { route: 'settings', title: 'Settings', icon: 'settings' },
 ];
 export default function AndroidAppShell({ app }: { app: AppController }) {
@@ -177,23 +179,36 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                 <Pressable
                   key={item.route}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: app.route === item.route }}
+                  accessibilityLabel={item.title}
+                  accessibilityState={{
+                    selected: item.route !== 'chat' && app.route === item.route,
+                  }}
+                  disabled={
+                    item.route === 'chat' &&
+                    (app.chat.sending ||
+                      !app.chat.loaded ||
+                      Boolean(app.transfer))
+                  }
                   onPress={() => {
+                    if (item.route === 'chat') app.chat.newConversation();
                     app.setRoute(item.route);
                     setDrawer(false);
                   }}
                   android_ripple={{ color: colors.border }}
                   style={[
                     styles.destination,
-                    app.route === item.route && {
-                      backgroundColor: colors.elevated,
-                    },
+                    item.route !== 'chat' &&
+                      app.route === item.route && {
+                        backgroundColor: colors.elevated,
+                      },
                   ]}
                 >
                   <Icon
                     name={item.icon}
                     color={
-                      app.route === item.route ? colors.accent : colors.text
+                      item.route !== 'chat' && app.route === item.route
+                        ? colors.accent
+                        : colors.text
                     }
                     size={26}
                   />
@@ -202,7 +217,7 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                       styles.destinationText,
                       {
                         color:
-                          app.route === item.route
+                          item.route !== 'chat' && app.route === item.route
                             ? colors.accent
                             : colors.text,
                       },
@@ -212,24 +227,6 @@ export default function AndroidAppShell({ app }: { app: AppController }) {
                   </Text>
                 </Pressable>
               ))}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Import chat"
-                disabled={
-                  app.chat.sending || !app.chat.loaded || Boolean(app.transfer)
-                }
-                onPress={() => {
-                  setDrawer(false);
-                  app.importChat();
-                }}
-                android_ripple={{ color: colors.border }}
-                style={styles.destination}
-              >
-                <Icon name="download" color={colors.text} size={26} />
-                <Text style={[styles.destinationText, { color: colors.text }]}>
-                  Import chat
-                </Text>
-              </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Report an issue"
