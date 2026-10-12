@@ -66,8 +66,8 @@ export function DocumentLibraryView({
         {onToggle
           ? 'Select files for this chat. Other chats search only their own attachments. '
           : 'Import files here, then attach them from a chat. '}
-        PDF, Markdown, and text files stay on this device. Scanned PDFs require
-        OCR and are not supported yet.
+        PDF, Markdown, and text files stay on this device. Scanned PDFs are not
+        supported yet. Use PDFs with selectable text.
       </Text>
       <Button
         label={

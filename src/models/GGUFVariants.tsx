@@ -155,7 +155,7 @@ export function GGUFVariants({
     if (file.split) return 'Split GGUF files are not supported.';
     if (!memoryChecked) return 'Reading device memory…';
     if (!memory)
-      return 'Device RAM could not be checked. Rebuild the app to install the memory reader.';
+      return 'Device RAM could not be checked. Memory estimates are unavailable on this device.';
     if (memory.appBudgetBytes <= 0)
       return 'No safe RAM budget is currently available. Close other apps and reopen this screen.';
     if (vision && (!projector || projector.size <= 0))
@@ -194,7 +194,7 @@ export function GGUFVariants({
     if (!supported) return 'No variants match these filters.';
     if (!memoryChecked) return 'Reading device memory…';
     if (!memory)
-      return 'Device RAM could not be checked. Rebuild the app to install the memory reader. Unknown does not mean incompatible.';
+      return 'Device RAM could not be checked. Memory estimates are unavailable on this device. Unknown does not mean incompatible.';
     if (memory.appBudgetBytes <= 0)
       return 'No safe RAM budget is currently available. Close other apps and reopen this screen.';
     if (vision && (!projector || projector.size <= 0))
@@ -236,8 +236,8 @@ export function GGUFVariants({
   );
   const info = () =>
     Alert.alert(
-      'Estimated device support',
-      'Supported means estimated RAM fit with safety headroom, not a guarantee of engine compatibility. We include model weights, FP16 context cache, working buffers, and selected vision projector/image overhead. Device memory changes as other apps run. Unknown architectures or missing metadata appear under All. Storage is checked separately.',
+      'About memory estimates',
+      'Memory estimates include the model, conversation context, and any vision files. Other apps can affect available memory. An estimated fit does not guarantee that a model will run. Models we cannot estimate appear under All. Free storage is checked separately.',
     );
   return (
     <>
@@ -273,7 +273,7 @@ export function GGUFVariants({
               {memory
                 ? sizes(memory.appBudgetBytes)
                 : memoryChecked
-                ? 'Unavailable — rebuild app'
+                ? 'Unavailable'
                 : 'Checking…'}{' '}
               · Storage:{' '}
               {controller.freeSpace !== null

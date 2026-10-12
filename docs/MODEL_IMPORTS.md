@@ -107,7 +107,7 @@ Documents in the main navigation imports PDF/Markdown/TXT into a shared private 
 
 ## Hugging Face authentication
 
-Settings → Model defaults includes Hugging Face token controls: paste a read token, tap **Apply token**, then retry the download. **Remove token** clears the shared credential. The field is masked, with a visibility toggle and a link to Hugging Face token settings. Discovery filters link to this same section instead of owning a separate token.
+Settings → General includes Hugging Face token controls: paste a read token, tap **Use token**, then retry the download. **Remove token** clears the shared credential. The field is masked, with a visibility toggle and a link to Hugging Face token settings. Discovery filters link to this same section instead of owning a separate token.
 
 The token is shared across Hub browsing, GGUF metadata checks, built-in/imported model downloads, vision projector downloads and retries. It stays in process memory and must be entered again after an app restart; it is not written to AsyncStorage, model metadata or chat exports. A download snapshots its credential when it starts; changing/removing the token affects subsequent requests/downloads, not an already-running transfer. Authorization headers are attached only when the initial request URL is the HTTPS `huggingface.co` origin. Arbitrary remote URLs receive no credential.
 

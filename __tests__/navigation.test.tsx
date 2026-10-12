@@ -235,6 +235,9 @@ test.each(['android', 'ios'] as const)(
         .find(node => node.props.accessibilityLabel === label)!;
     expect(sectionTab('General').props.accessibilityState.selected).toBe(true);
     expect(
+      renderer!.root.findByProps({ accessibilityLabel: 'Hugging Face token' }),
+    ).toBeDefined();
+    expect(
       renderer!.root.findAllByProps({ label: 'Model settings' }),
     ).toHaveLength(0);
     await Renderer.act(async () =>
@@ -247,6 +250,11 @@ test.each(['android', 'ios'] as const)(
       renderer!.root.findByProps({ label: 'Model settings' }),
     ).toBeDefined();
     expect(
+      renderer!.root.findAllByProps({
+        accessibilityLabel: 'Hugging Face token',
+      }),
+    ).toHaveLength(0);
+    expect(
       renderer!.root.findAllByProps({ accessibilityLabel: 'Import chat' }),
     ).toHaveLength(0);
     await Renderer.act(async () => sectionTab('About app').props.onPress());
@@ -254,7 +262,7 @@ test.each(['android', 'ios'] as const)(
       renderer!.root
         .findAllByType('Text' as never)
         .map(node => node.props.children),
-    ).toContain('Engine diagnostics');
+    ).toContain('Device details');
     expect(
       renderer!.root.findAllByProps({ label: 'Model settings' }),
     ).toHaveLength(0);
@@ -268,7 +276,7 @@ test.each(['android', 'ios'] as const)(
       renderer!.root
         .findAllByType('Text' as never)
         .map(node => node.props.children),
-    ).not.toContain('Engine diagnostics');
+    ).not.toContain('Device details');
     await Renderer.act(async () => sectionTab('General').props.onPress());
     expect(
       renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
@@ -278,10 +286,8 @@ test.each(['android', 'ios'] as const)(
         .findAll(node => typeof node.props.onTokenSettings === 'function')[0]
         .props.onTokenSettings();
     });
-    expect(app.settingsSection).toBe('Model defaults');
-    expect(sectionTab('Model defaults').props.accessibilityState.selected).toBe(
-      true,
-    );
+    expect(app.settingsSection).toBe('General');
+    expect(sectionTab('General').props.accessibilityState.selected).toBe(true);
     await Renderer.act(async () => renderer!.unmount());
     menu.mockRestore();
   },

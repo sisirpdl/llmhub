@@ -17,14 +17,14 @@ test('masks, validates, applies, and removes the shared token', async () => {
     field().props.onChangeText('invalid');
   });
   await Renderer.act(async () => {
-    renderer!.root.findByProps({ label: 'Apply token' }).props.onPress();
+    renderer!.root.findByProps({ label: 'Use token' }).props.onPress();
   });
   expect(apply).not.toHaveBeenCalled();
   await Renderer.act(async () => {
     field().props.onChangeText(' hf_read ');
   });
   await Renderer.act(async () => {
-    renderer!.root.findByProps({ label: 'Apply token' }).props.onPress();
+    renderer!.root.findByProps({ label: 'Use token' }).props.onPress();
   });
   expect(apply).toHaveBeenLastCalledWith('hf_read');
   await Renderer.act(async () => {

@@ -33,8 +33,8 @@ export function HuggingFaceTokenSettings({
       ]}
     >
       <Text style={[styles.description, { color: colors.muted }]}>
-        Optional read token for private or gated models and authenticated
-        downloads. Your account must also have access to the model.
+        Add a read token if a download requires sign-in. For restricted models,
+        your Hugging Face account must also have access.
       </Text>
       <View
         style={[
@@ -78,11 +78,11 @@ export function HuggingFaceTokenSettings({
           { color: token ? colors.green : colors.muted },
         ]}
       >
-        {token ? 'Token active for this session.' : 'No token configured.'}{' '}
-        Token is kept in memory and cleared when the app restarts.
+        {token ? 'Token added.' : 'No token added.'} Your token is cleared when
+        you restart the app.
       </Text>
       <Button
-        label="Apply token"
+        label="Use token"
         colors={colors}
         disabled={!draft.trim() || draft.trim() === token}
         onPress={apply}
@@ -100,7 +100,7 @@ export function HuggingFaceTokenSettings({
         />
       ) : null}
       <Button
-        label="Get a Hugging Face token"
+        label="Create a token"
         icon="external"
         colors={colors}
         onPress={() => {

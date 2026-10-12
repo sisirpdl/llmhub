@@ -1,3 +1,4 @@
+import { version } from '../../package.json';
 import {
   Platform,
   Pressable,
@@ -182,7 +183,7 @@ export function ScreenContent({ app }: { app: AppController }) {
         colors={colors}
         onTokenSettings={() => {
           app.setDiscoveryVisible(false);
-          app.setSettingsSection('Model defaults');
+          app.setSettingsSection('General');
           app.setRoute('settings');
         }}
       />
@@ -386,6 +387,14 @@ function SettingsScreen({ app }: { app: AppController }) {
             >
               General
             </Text>
+            <Text style={[styles.section, { color: colors.accent }]}>
+              Hugging Face
+            </Text>
+            <HuggingFaceTokenSettings
+              token={app.models.hfToken}
+              onApply={app.models.setHfToken}
+              colors={colors}
+            />
             <Text style={[styles.caption, { color: colors.muted }]}>
               Appearance
             </Text>
@@ -445,11 +454,6 @@ function SettingsScreen({ app }: { app: AppController }) {
             >
               Model defaults
             </Text>
-            <HuggingFaceTokenSettings
-              token={app.models.hfToken}
-              onApply={app.models.setHfToken}
-              colors={colors}
-            />
             <View
               style={[
                 styles.group,
@@ -459,10 +463,10 @@ function SettingsScreen({ app }: { app: AppController }) {
             >
               <Text style={[styles.paragraph, { color: colors.muted }]}>
                 {app.lan.remote
-                  ? 'The host supplies generation settings in LAN mode. Disconnect to adjust this phone’s model.'
+                  ? 'Your connected host controls response settings. Disconnect to change settings for this phone’s model.'
                   : app.lan.host
                   ? 'Stop hosting before changing model settings.'
-                  : `Adjust generation settings for ${app.models.model.displayName}. Instructions are saved with the current chat.`}
+                  : `Set response preferences for ${app.models.model.displayName}. The system prompt applies to the current chat.`}
               </Text>
               <Button
                 label="Model settings"
@@ -486,11 +490,10 @@ function InfoSection({ app }: { app: AppController }) {
   const { colors, models } = app;
   const constants = Platform.constants as Record<string, unknown>;
   const rows = [
-    ['App version', '0.0.1'],
+    ['App version', version],
     ['Device', String(constants.Model || constants.model || 'Unknown device')],
     ['Platform', `${Platform.OS} ${String(Platform.Version)}`],
-    ['llama.rn', `0.12.0 · ${models.engineStatus}`],
-    ['New Architecture', 'Enabled'],
+    ['Inference engine', `llama.rn 0.12.0 · ${models.engineStatus}`],
     ['Model', models.model.displayName],
     ['Model state', models.states[models.model.id] || 'checking'],
     [
@@ -500,13 +503,15 @@ function InfoSection({ app }: { app: AppController }) {
         : `${formatBytes(models.freeSpace)} free`,
     ],
     [
-      'Last load',
-      models.loadDuration === null ? 'Not run' : `${models.loadDuration} ms`,
+      'Model load time',
+      models.loadDuration === null
+        ? 'Not available'
+        : `${models.loadDuration} ms`,
     ],
     [
-      'Smoke completion',
+      'Last inference check',
       models.completionDuration === null
-        ? 'Not run'
+        ? 'Not available'
         : `${models.completionDuration} ms`,
     ],
   ];
@@ -521,7 +526,7 @@ function InfoSection({ app }: { app: AppController }) {
         </Text>
       </View>
       <Text style={[styles.section, { color: colors.accent }]}>
-        Engine diagnostics
+        Device details
       </Text>
       <View
         style={[
@@ -544,9 +549,8 @@ function InfoSection({ app }: { app: AppController }) {
         ))}
       </View>
       <Text style={[styles.caption, styles.footnote, { color: colors.muted }]}>
-        Diagnostics stay on device and never include your prompts.
-        Physical-device testing is required to validate native inference. iOS is
-        preview-only until verified on an iPhone.
+        These device details stay on your phone. When reporting an issue, you
+        can choose to include basic app and OS information.
       </Text>
     </View>
   );
