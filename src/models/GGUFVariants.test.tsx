@@ -132,99 +132,110 @@ test('explains missing device memory without claiming the models are too large',
   (readDeviceMemory as jest.Mock).mockResolvedValueOnce(null);
   await renderVariants();
   expect(text()).toContain('Device RAM could not be checked');
-  expect(text()).toContain('Unknown does not mean incompatible');
+  expect(text()).toContain('Open All to browse without the size filter');
   expect(text()).not.toContain('No variants fit the estimated RAM budget');
 });
-test('explains missing GGUF metadata and exposes the reason under All', async () => {
-  (readGGUFMetadata as jest.Mock)
-    .mockResolvedValueOnce(null)
-    .mockResolvedValueOnce(null);
+test('browses and enables downloads without requesting GGUF metadata', async () => {
+  const reader = readGGUFMetadata as jest.Mock;
+  reader.mockClear();
   await renderVariants();
-  expect(text()).toContain('RAM requirements could not be estimated');
-  await Renderer.act(async () => {
+  await Renderer.act(async () =>
+    renderer.root
+      .findByProps({ accessibilityLabel: `Select ${file.path}` })
+      .props.onPress(),
+  );
+  expect(reader).not.toHaveBeenCalled();
+  expect(renderer.root.findByType(Button).props.disabled).toBe(false);
+  expect(text()).toContain('79% of the app’s RAM budget');
+  expect(text()).not.toContain('Checking variants');
+});
+
+test('uses the app budget rather than total RAM and keeps a manual All option', async () => {
+  await renderVariants({
+    ...details,
+    files: [{ ...file, path: 'above.gguf', size: 4 * 1024 ** 3 }],
+  });
+  expect(text()).toContain('No variants are within 79%');
+  expect(
+    renderer.root.findAllByProps({ accessibilityLabel: 'Select above.gguf' }),
+  ).toHaveLength(0);
+  await Renderer.act(async () =>
     renderer.root
       .findByProps({ accessibilityLabel: 'Show all variants' })
-      .props.onPress();
-  });
-  expect(text()).toContain(
-    'GGUF metadata is unavailable or its architecture cannot be estimated',
+      .props.onPress(),
   );
+  await Renderer.act(async () =>
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Select above.gguf' })
+      .props.onPress(),
+  );
+  expect(text()).toContain('Above size limit');
+  expect(renderer.root.findByType(Button).props.disabled).toBe(false);
 });
-test('does not offer lower context when model weights alone exceed the budget', async () => {
-  await renderVariants({ ...details, files: [details.files[1]] });
-  expect(text()).toContain('No variants fit the estimated RAM budget');
-  expect(text()).not.toContain('estimated to fit');
-});
-test('suggests and applies a smaller context only when it predicts a supported fit', async () => {
-  (readGGUFMetadata as jest.Mock).mockResolvedValueOnce({
-    architecture: 'qwen2',
-    layers: 64,
-    kvHeads: 16,
-    keyLength: 128,
-    valueLength: 128,
-    maxContext: 8192,
-  });
+
+test('longer context does not change the size filter or pretend to measure RAM', async () => {
   await renderVariants({ ...details, files: [file] });
-  await Renderer.act(async () => {
+  await Renderer.act(async () =>
     renderer.root
       .findAllByProps({ accessibilityRole: 'button' })
       .find(node =>
         node.findAllByType(Text).some(t => t.props.children === '8K'),
       )!
-      .props.onPress();
-  });
-  expect(text()).toContain('No variants fit the estimated RAM budget');
-  await Renderer.act(async () => {
-    renderer.root
-      .findByProps({ accessibilityLabel: 'Use 4096 context tokens' })
-      .props.onPress();
-  });
+      .props.onPress(),
+  );
   expect(
-    renderer.root.findByProps({
-      accessibilityLabel: 'Select small-Q4_K_M.gguf',
-    }),
+    renderer.root.findByProps({ accessibilityLabel: `Select ${file.path}` }),
   ).toBeDefined();
+  expect(text()).toContain('longer context uses more memory');
+  expect(text()).not.toContain('RAM at');
 });
 
-test('selecting a pending variant prioritizes it and permits download before background checks finish', async () => {
-  const meta = {
-    architecture: 'qwen2',
-    layers: 24,
-    kvHeads: 2,
-    keyLength: 64,
-    valueLength: 64,
-    maxContext: 8192,
+test('the vision size filter includes the selected projector', async () => {
+  const projector = {
+    ...file,
+    path: 'mmproj.gguf',
+    size: 1024 ** 3,
+    projector: true,
   };
-  const reader = readGGUFMetadata as jest.Mock;
-  reader.mockClear();
-  reader.mockImplementation((_details, candidate, _token, signal) =>
-    candidate.path === 'chosen.gguf'
-      ? Promise.resolve(meta)
-      : new Promise(resolve =>
-          signal.addEventListener('abort', () => resolve(null)),
-        ),
+  const { Switch } = require('react-native');
+  await renderVariants({
+    ...details,
+    files: [{ ...file, size: 3 * 1024 ** 3 }, projector],
+  });
+  await Renderer.act(async () =>
+    renderer.root.findByType(Switch).props.onValueChange(true),
   );
+  expect(text()).toContain('Choose a vision projector');
+  await Renderer.act(async () =>
+    renderer.root
+      .findByProps({ accessibilityLabel: 'Select projector mmproj.gguf' })
+      .props.onPress(),
+  );
+  expect(
+    renderer.root.findAllByProps({ accessibilityLabel: `Select ${file.path}` }),
+  ).toHaveLength(0);
+  expect(text()).toContain('No variants are within 79%');
+});
+
+test('unknown sizes and split files stay out of the default filter', async () => {
   await renderVariants({
     ...details,
     files: [
-      file,
-      { ...file, path: 'another.gguf' },
-      { ...file, path: 'chosen.gguf' },
+      { ...file, size: 0 },
+      { ...file, path: 'split.gguf', split: true },
     ],
   });
-  const initialSignals = reader.mock.calls.slice(0, 2).map(call => call[3]);
+  expect(
+    renderer.root.findAllByProps({ accessibilityLabel: `Select ${file.path}` }),
+  ).toHaveLength(0);
   await Renderer.act(async () =>
     renderer.root
-      .findByProps({ accessibilityLabel: 'Select chosen.gguf' })
+      .findByProps({ accessibilityLabel: 'Show all variants' })
       .props.onPress(),
   );
-  expect(initialSignals.every(signal => signal.aborted)).toBe(true);
-  expect(reader.mock.calls[2][1].path).toBe('chosen.gguf');
   expect(
-    renderer.root
-      .findAllByType(Button)
-      .find(node => node.props.label.startsWith('Download'))!.props.disabled,
-  ).toBe(false);
-  expect(text()).toContain('Checking variants in the background');
-  reader.mockResolvedValue(meta);
+    renderer.root.findByProps({ accessibilityLabel: 'Select split.gguf' }).props
+      .disabled,
+  ).toBe(true);
+  expect(text()).toContain('Model download size is unavailable');
 });

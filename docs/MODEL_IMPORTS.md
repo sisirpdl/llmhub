@@ -56,11 +56,11 @@ Automated checks cover API parsing, pagination restrictions, authorization, impo
 
 The Hub browser opens on Trending + Text. Trending and Most downloaded request 10 repositories at a time; Browse requests 20. Most downloaded uses the Hub's monthly download metric. Search text remains when changing rank or Text/Vision/All. Show more follows the Hub's pagination cursor without sending tokens to another API host.
 
-Repository files default to **Supported**. This means an estimated RAM fit, not certified engine compatibility. The calculation uses GGUF architecture metadata, model weights, FP16 KV cache at the selected context length, working buffers, projector/image overhead, and safety margins. Unrecognized architectures, missing metadata, or unavailable native memory readings stay **Unknown** under All. Metadata uses cancellable HTTP ranges, capped at four 2 MB responses per file; files requiring larger headers stay Unknown. Two files are inspected concurrently and compact parsed architecture metadata is cached in memory.
+Repository files default to **Likely fits**, an immediate file-size filter. A file is included when its size is at most **79% of the app's RAM budget**. Vision mode includes the selected projector's size in that comparison. This is not a measured RAM requirement or an engine compatibility check: context cache, runtime buffers and image processing can need additional memory. All exposes larger files and unknown sizes; split GGUF files remain disabled. Browsing does not fetch or parse individual GGUF headers.
 
 Android reads system memory plus the app's current PSS and reserves OS headroom; the budget is capped at 60% of physical memory. iOS uses `os_proc_available_memory` plus the app's current physical footprint, with a similar cap and reserve. These are conservative heuristics and require calibration on physical devices. They do not promise that every model classified as fitting can load. System memory pressure and engine architecture support can still cause a load failure.
 
-Storage filtering is independent. A RAM-suitable variant remains visible with a storage icon and shortfall when there is not enough disk space. The download action is disabled for a known shortfall. Projector selection and context length change the estimate. Vision estimates remain Unknown until a projector with a known size is selected.
+Storage filtering is independent. A size-filtered variant remains visible with a storage icon and shortfall when there is not enough disk space. Download is disabled for a known shortfall. Projector selection changes the combined file-size check. Context length changes inference settings, but does not change this heuristic; longer contexts need more runtime memory. Vision file sizes remain Unknown until a projector with a known size is selected.
 
 Model settings are beside the abbreviated model chip in the composer. Edits and Reset are staged; Cancel discards them. Apply validates and saves a per-model profile, with temperature, output tokens, top-p, top-k, min-p, repetition penalty, seed, and context length. Changing the active context reloads the model. A storage failure while saving settings attempts to restore the previous loaded context. App defaults are displayed explicitly. System instructions are saved with the conversation.
 
@@ -75,9 +75,9 @@ This update adds a native memory reader in both app targets. A Metro reload alon
 ### Additional phone checks
 
 - Verify Trending/Text defaults, all three tabs, search retention, type filtering, and Show more.
-- Compare Supported with All; change context size; select a vision projector; confirm RAM status updates.
+- Compare Likely fits with All; verify the 79% boundary against the app budget; select a vision projector and confirm the combined size updates.
 - Test low storage: the fitting variant remains visible and the download action is disabled.
-- Check that a missing native module or unavailable GGUF metadata shows Unknown rather than a false compatibility claim.
+- Check that unavailable native memory or unknown file sizes show Unknown; All must remain accessible. Confirm no GGUF-header requests are made while browsing.
 - Open model settings while a download is updating. Edits must stay staged; Cancel and Reset/Apply must behave correctly.
 - Rename an empty chat and send its first message; the custom topic must remain.
 - Switch text → vision → text in one chat. Check dividers, model attribution, saved images after restart, and warnings.
@@ -88,7 +88,7 @@ This update adds a native memory reader in both app targets. A Metro reload alon
 
 All three Hub tabs default to models up to 4B parameters. Filters offer up to 8B and Any size, and search retains the selected size range. The API parameter filter is backed by a conservative local check using available GGUF/safetensors totals and parameter counts in repository names. Unknown sizes are excluded from limited lists and remain accessible under Any size. Bounded pagination refills after exclusions while preserving ranking; sparse results can show fewer entries with Show more available. Parameter count is a discovery hint, not a RAM-fit guarantee.
 
-The Supported empty state distinguishes unavailable device memory, missing/unsupported GGUF metadata, missing vision projector, split files, and insufficient RAM headroom. Context chips are explicitly labeled as token counts. A lower-context suggestion appears only when recalculation predicts a fit; unknown estimates never imply incompatibility.
+The Likely fits empty state distinguishes unavailable device memory, unknown file sizes, a missing vision projector, split files, and files above the 79% limit. Context chips are labeled as token counts. The screen does not show calculated runtime RAM requirements or lower-context fit suggestions.
 
 ## Your models and contextual suggestions
 
@@ -109,13 +109,11 @@ Documents in the main navigation imports PDF/Markdown/TXT into a shared private 
 
 Settings → General includes Hugging Face token controls: paste a read token, tap **Use token**, then retry the download. **Remove token** clears the shared credential. The field is masked, with a visibility toggle and a link to Hugging Face token settings. Discovery filters link to this same section instead of owning a separate token.
 
-The token is shared across Hub browsing, GGUF metadata checks, built-in/imported model downloads, vision projector downloads and retries. It stays in process memory and must be entered again after an app restart; it is not written to AsyncStorage, model metadata or chat exports. A download snapshots its credential when it starts; changing/removing the token affects subsequent requests/downloads, not an already-running transfer. Authorization headers are attached only when the initial request URL is the HTTPS `huggingface.co` origin. Arbitrary remote URLs receive no credential.
+The token is shared across Hub browsing, built-in/imported model downloads, vision projector downloads and retries. It stays in process memory and must be entered again after an app restart; it is not written to AsyncStorage, model metadata or chat exports. A download snapshots its credential when it starts; changing/removing the token affects subsequent requests/downloads, not an already-running transfer. Authorization headers are attached only when the initial request URL is the HTTPS `huggingface.co` origin. Arbitrary remote URLs receive no credential.
 
 A read token does not grant model access by itself. Gated models may require accepting terms or receiving approval on the repository page with the same Hugging Face account. Authentication failures point back to Settings. Native provider/redirect and physical-device download checks remain required.
 
 
-## Metadata check responsiveness
+## Immediate variant filtering
 
-GGUF variants remain selectable while their RAM metadata is being checked; pending checks do not imply compatibility. Selecting an unchecked variant cancels current background requests and moves that file to the front of the two-worker queue. Completed results are kept, and other checks continue in the background. In Supported mode, downloading still requires a successful RAM fit estimate.
-
-Successful estimator metadata is cached in private AsyncStorage, bounded to 80 revision-pinned file URLs. No Hugging Face tokens or device RAM readings are stored in this cache. Cached values are revalidated with the current estimator after restart. A changed repository revision gets a new cache entry. Cache errors do not block metadata checks; unknown results are not persisted. RAM fit is recalculated for the current device memory, context and vision settings. The whole remote check has a 12-second budget per file, in addition to bounded range requests. Slow or unsupported files remain unknown rather than being labeled compatible.
+Browsing uses file sizes already supplied by the repository listing and a native device memory reading. There are no per-variant GGUF metadata requests, progress queues or header parsing before selection or download. `deviceSuitability.ts` keeps its detailed estimator and `ggufMetadata.ts` keeps its revision-pinned cache for future detailed checks; the variant browser does not call them. File-size filtering uses `fileSizeFit()` instead. No size-filter result certifies that a model can load.

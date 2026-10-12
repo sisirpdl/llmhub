@@ -1,5 +1,6 @@
 import {
   estimateSuitability,
+  fileSizeFit,
   memoryMetadata,
   storageShortfall,
 } from './deviceSuitability';
@@ -59,4 +60,19 @@ test('storage shortfall is independent from RAM suitability and includes project
     768 * 1024 ** 2,
   );
   expect(storageShortfall(1000, 0, null)).toBeNull();
+});
+
+test('quick size filter accepts the 79% boundary and rejects larger combined files', () => {
+  const budget = {
+    totalBytes: 8000,
+    availableBytes: 6000,
+    appBudgetBytes: 5000,
+  };
+  expect(fileSizeFit(3950, budget)).toBe('fits');
+  expect(fileSizeFit(3951, budget)).toBe('large');
+  expect(fileSizeFit(3000, budget, 950)).toBe('fits');
+  expect(fileSizeFit(3000, budget, 951)).toBe('large');
+  expect(fileSizeFit(0, budget)).toBe('unknown');
+  expect(fileSizeFit(1000, null)).toBe('unknown');
+  expect(fileSizeFit(1000, { ...budget, appBudgetBytes: 0 })).toBe('unknown');
 });

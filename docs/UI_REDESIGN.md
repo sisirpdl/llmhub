@@ -4,7 +4,7 @@
 
 Android follows the supplied PocketPal references: near-black canvas, black top app bar, drawer navigation with local conversation history, lavender section headings, compact outlined model cards, green offload action, floating catalog button, model-picker and discovery sheets, and an anchored multiline composer. iOS uses a separate shell with Chat, Models and Settings bottom tabs, large navigation titles, grouped model rows, safe-area spacing, and padding-based keyboard avoidance. Shared components adapt card and control geometry without duplicating model or chat behavior.
 
-Dark appearance is the first-run default; Dark, Light and Follow system are persisted locally. LLMHub keeps its name and supported catalog. Discovery browses Hugging Face GGUF repositories with Trending/Most downloaded/Browse, Text/Vision/All and phone-size filters. Local GGUF and direct HTTPS file imports are also implemented. A listed model is not a guarantee of engine compatibility. Voice, Pals, and benchmarking were not implemented as decorative controls.
+Dark appearance is the first-run default; Dark, Light and Follow system are persisted locally. LLMHub keeps its name and supported catalog. Discovery browses Hugging Face GGUF repositories with Trending/Most downloaded/Browse, Text/Vision/All and phone-size filters. Local GGUF and direct HTTPS file imports are also implemented. Variants default to Likely fits: model plus selected vision projector files up to 79% of the app RAM budget, without GGUF metadata requests. All exposes larger or unknown files. A listed model is not a guarantee of engine compatibility. Voice, Pals, and benchmarking were not implemented as decorative controls.
 
 ## Shared behavior
 
