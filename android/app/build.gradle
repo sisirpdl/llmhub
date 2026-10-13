@@ -128,6 +128,15 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
+        preview {
+            initWith release
+            signingConfig signingConfigs.debug
+            applicationIdSuffix ".preview"
+            versionNameSuffix "-preview"
+            debuggable false
+            matchingFallbacks = ['release']
+            // Keep preview out of react.debuggableVariants so JS/assets are bundled.
+        }
     }
 }
 

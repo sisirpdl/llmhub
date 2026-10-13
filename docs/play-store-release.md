@@ -1,5 +1,20 @@
 # Play Store release checklist
 
+## Standalone phone testing without USB or Metro
+
+From the repository root:
+
+```sh
+cd android
+./gradlew assemblePreview
+```
+
+Transfer `android/app/build/outputs/apk/preview/app-preview.apk` from your computer to your phone using Quick Share or another file-transfer method, then open it on the phone to install. Android may ask you to allow installations from the app opening the APK.
+
+This variant bundles JavaScript and assets, disables developer support, and uses the existing debug keystore, so it does not need Metro, USB, or upload-signing credentials. It installs as **LLMHub Preview** (`com.llmhub.preview`) alongside the regular app. Its storage is separate: download/import models again, or use nearby model sharing. Stop hosting in the other app before testing LAN hosting to avoid port conflicts. Rebuild and reinstall the APK whenever code changes. Internet is still needed for model downloads and report submission; local chat works offline after downloading a model.
+
+Use the signed release AAB below for Google Play, not the preview APK.
+
 ## Upload signing
 
 Release builds no longer use the debug signing certificate. Create an upload key and keep it backed up outside the repository:
