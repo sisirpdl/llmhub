@@ -13,6 +13,7 @@ export const darkColors = {
   green: '#70d7ab',
   greenSurface: '#052e1b',
   danger: '#ff7767',
+  dangerSurface: '#341816',
   scrim: 'rgba(0,0,0,0.65)',
   input: '#171717',
 };
@@ -30,6 +31,7 @@ export const lightColors: typeof darkColors = {
   green: '#167b50',
   greenSurface: '#e2f5eb',
   danger: '#c5382b',
+  dangerSurface: '#fbecea',
   scrim: 'rgba(0,0,0,0.35)',
   input: '#e9e9ef',
 };

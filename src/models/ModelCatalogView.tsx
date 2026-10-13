@@ -121,7 +121,7 @@ export function ModelCard({
                 state === 'active'
                   ? colors.active
                   : state === 'ready'
-                  ? colors.accent
+                  ? colors.green
                   : colors.muted,
             },
           ]}

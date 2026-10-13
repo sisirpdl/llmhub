@@ -235,7 +235,7 @@ export function GGUFVariants({
             ? sizes(memory.appBudgetBytes * MODEL_FILE_BUDGET_FRACTION)
             : 'Unavailable'}{' '}
           · 79% of the app’s RAM budget.
-          {'\n'}Estimated from file size. Actual memory use varies.
+          {'\n'}Filtered by file size. Actual RAM use varies.
         </Text>
         <ScrollView
           horizontal
@@ -304,21 +304,14 @@ export function GGUFVariants({
                 ) : null}
               </View>
               <View style={s.row}>
-                <Text style={{ color: colors.accent }}>
-                  {file.quantization}
-                </Text>
+                <Text style={{ color: colors.muted }}>{file.quantization}</Text>
                 <Text style={{ color: colors.muted }}>{sizes(file.size)}</Text>
                 <View style={s.grow} />
                 <Text
                   style={[
                     s.small,
                     {
-                      color:
-                        fit === 'fits'
-                          ? colors.green
-                          : fit === 'large'
-                          ? colors.danger
-                          : colors.muted,
+                      color: colors.muted,
                     },
                   ]}
                 >

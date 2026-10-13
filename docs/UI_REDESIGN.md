@@ -60,3 +60,10 @@ Physical-device checks still required:
 - Verify the vision preview separately on a compatible physical device.
 
 Do not treat a simulator or web preview as evidence that local native inference passed on a phone.
+
+
+## Icons and status colors
+
+The shared icon wrapper uses Lucide React Native with consistent 1.75-pixel outline strokes and individual icon imports. Existing icon names and touch targets are preserved. Green indicates loaded/downloaded models, connected documents or LAN sessions, and completed transfers or submissions. Red indicates errors, blocked downloads due to insufficient storage, and delete actions. File-size guidance remains neutral because it is not proof that a model can load. Links and selected navigation controls use the existing accent color.
+
+Variant browsing reads device memory once on entry and refreshes it when the app returns to the foreground. It filters repository file sizes at 79% of the app RAM budget, with no GGUF-header requests or staged metadata updates. The explanation reads: “Filtered by file size. Actual RAM use varies.” Context controls do not change this size filter.

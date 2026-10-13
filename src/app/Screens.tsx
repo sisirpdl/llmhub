@@ -153,6 +153,7 @@ export function ScreenContent({ app }: { app: AppController }) {
         />
         <Button
           label="Delete chat"
+          destructive
           icon="trash"
           colors={colors}
           disabled={chat.sending || chat.deleting || Boolean(app.transfer)}

@@ -223,14 +223,19 @@ export function IssueReportSheet({
         {notice ? (
           <Text
             accessibilityLiveRegion="polite"
-            style={{ color: colors.accent }}
+            style={{
+              color:
+                notice === 'Report submitted. Thank you.'
+                  ? colors.green
+                  : colors.muted,
+            }}
           >
             {notice}
           </Text>
         ) : null}
         <Button
           label={loading ? 'Loading draft…' : busy ? 'Working…' : 'Save draft'}
-          icon="storage"
+          icon="save"
           colors={colors}
           onPress={() => persist(false)}
           disabled={disabled}

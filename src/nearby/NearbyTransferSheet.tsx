@@ -58,7 +58,10 @@ export function NearbyTransferSheet({
         </Text>
         <Text
           accessibilityLiveRegion="polite"
-          style={[styles.heading, { color: colors.text }]}
+          style={[
+            styles.heading,
+            { color: state.stage === 'done' ? colors.green : colors.text },
+          ]}
         >
           {labels[state.stage]}
         </Text>
@@ -236,6 +239,7 @@ export function NearbyTransferSheet({
         state.stage !== 'done' ? (
           <Button
             label="Delete partial transfer"
+            destructive
             icon="trash"
             colors={colors}
             onPress={transfer.discard}

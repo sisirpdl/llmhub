@@ -36,7 +36,10 @@ export function IconButton({
       android_ripple={{ color: colors.border, borderless: true }}
       style={[s.iconButton, disabled && s.disabled]}
     >
-      <Icon name={name} color={color || colors.text} />
+      <Icon
+        name={name}
+        color={color || (name === 'trash' ? colors.danger : colors.text)}
+      />
     </Pressable>
   );
 }
@@ -47,6 +50,7 @@ export function Button({
   colors,
   disabled = false,
   green = false,
+  destructive = false,
 }: {
   label: string;
   icon?: IconName;
@@ -54,7 +58,13 @@ export function Button({
   colors: Colors;
   disabled?: boolean;
   green?: boolean;
+  destructive?: boolean;
 }) {
+  const foreground = destructive
+    ? colors.danger
+    : green
+    ? colors.green
+    : colors.onPrimary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -66,27 +76,22 @@ export function Button({
       style={[
         s.button,
         {
-          backgroundColor: green ? colors.greenSurface : colors.primary,
-          borderColor: green ? colors.green : colors.primary,
+          backgroundColor: destructive
+            ? colors.dangerSurface
+            : green
+            ? colors.greenSurface
+            : colors.primary,
+          borderColor: destructive
+            ? colors.danger
+            : green
+            ? colors.green
+            : colors.primary,
         },
         disabled && s.disabled,
       ]}
     >
-      {icon ? (
-        <Icon
-          name={icon}
-          color={green ? colors.green : colors.onPrimary}
-          size={20}
-        />
-      ) : null}
-      <Text
-        style={[
-          s.buttonText,
-          { color: green ? colors.green : colors.onPrimary },
-        ]}
-      >
-        {label}
-      </Text>
+      {icon ? <Icon name={icon} color={foreground} size={20} /> : null}
+      <Text style={[s.buttonText, { color: foreground }]}>{label}</Text>
     </Pressable>
   );
 }

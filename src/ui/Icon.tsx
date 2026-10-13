@@ -1,45 +1,76 @@
-import Svg, { Path } from 'react-native-svg';
-const paths = {
-  document: 'M14 2H5v20h14V7l-5-5zM14 2v5h5M8 11h8M8 15h8M8 19h5',
-  qr: 'M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v6h-6v-2M3 12h6M12 3v6M12 12h3M18 12h3M12 18v3',
-  issue: 'M12 3 2 21h20L12 3zM12 9v5M12 17h.01',
-  menu: 'M4 6h16M4 12h12M4 18h16',
-  chat: 'M5 3h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9l-5 3v-3H3V5a2 2 0 0 1 2-2zM8 8h8M8 12h5',
-  models: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
-  settings:
-    'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1zM16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
-  sliders: 'M6 3v5m0 4v9M12 3v10m0 4v4M18 3v2m0 4v12M3 8h6M9 17h6M15 5h6',
-  info: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM12 11v6M12 7h.01',
-  plus: 'M12 5v14M5 12h14',
-  swap: 'M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4',
-  connected:
-    'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
-  disconnected:
-    'M8 10l-4 4a5 5 0 0 0 7 7l2-2M16 14l4-4a5 5 0 0 0-7-7l-2 2M3 3l18 18',
-  close: 'M6 6l12 12M18 6 6 18',
-  down: 'm6 9 6 6 6-6',
-  up: 'm6 15 6-6 6 6',
-  download: 'M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4',
-  offload: 'm7 11 5-6 5 6M5 15h14M5 19h14',
-  trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
-  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
-  eyeOff:
-    'M3 3l18 18M10 5a11 11 0 0 1 12 7s-1 2-3 4M6 6a18 18 0 0 0-4 6s4 7 10 7a12 12 0 0 0 5-1M10 10a3 3 0 0 0 4 4',
-  search: 'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0zm-2 5 6 6',
-  send: 'm3 11 18-8-8 18-2-8-8-2zm8 2L21 3',
-  edit: 'M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7M16 3l5 5-9 9-5 1 1-5 8-10z',
-  more: 'M12 4h.01M12 12h.01M12 20h.01',
-  shield: 'M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6l-9-4zm-5 10 3 3 7-7',
-  check: 'm5 12 4 4L19 6',
-  stop: 'M6 6h12v12H6z',
-  image: 'M3 3h18v18H3zM3 17l6-6 5 5 3-3 4 4M16 7h.01',
-  arrow: 'M5 12h14m-6-6 6 6-6 6',
-  back: 'M19 12H5m6-6-6 6 6 6',
-  storage: 'M4 4h16v16H4zM7 4v6h10V4M7 20v-7h10v7',
-  external: 'M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7',
-  clock: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM12 7v5l3 2',
+import GlyphDocument from 'lucide-react-native/icons/file-text';
+import GlyphQr from 'lucide-react-native/icons/qr-code';
+import GlyphIssue from 'lucide-react-native/icons/message-square-warning';
+import GlyphMenu from 'lucide-react-native/icons/menu';
+import GlyphChat from 'lucide-react-native/icons/message-circle';
+import GlyphModels from 'lucide-react-native/icons/layers';
+import GlyphSettings from 'lucide-react-native/icons/settings-2';
+import GlyphSliders from 'lucide-react-native/icons/sliders-horizontal';
+import GlyphInfo from 'lucide-react-native/icons/info';
+import GlyphPlus from 'lucide-react-native/icons/plus';
+import GlyphSwap from 'lucide-react-native/icons/arrow-left-right';
+import GlyphConnected from 'lucide-react-native/icons/link';
+import GlyphDisconnected from 'lucide-react-native/icons/unlink';
+import GlyphClose from 'lucide-react-native/icons/x';
+import GlyphDown from 'lucide-react-native/icons/chevron-down';
+import GlyphUp from 'lucide-react-native/icons/chevron-up';
+import GlyphDownload from 'lucide-react-native/icons/download';
+import GlyphOffload from 'lucide-react-native/icons/hard-drive-upload';
+import GlyphTrash from 'lucide-react-native/icons/trash';
+import GlyphEye from 'lucide-react-native/icons/eye';
+import GlyphEyeOff from 'lucide-react-native/icons/eye-off';
+import GlyphSearch from 'lucide-react-native/icons/search';
+import GlyphSend from 'lucide-react-native/icons/send';
+import GlyphEdit from 'lucide-react-native/icons/square-pen';
+import GlyphMore from 'lucide-react-native/icons/ellipsis-vertical';
+import GlyphShield from 'lucide-react-native/icons/shield-check';
+import GlyphCheck from 'lucide-react-native/icons/check';
+import GlyphStop from 'lucide-react-native/icons/square';
+import GlyphImage from 'lucide-react-native/icons/image';
+import GlyphArrow from 'lucide-react-native/icons/arrow-right';
+import GlyphBack from 'lucide-react-native/icons/arrow-left';
+import GlyphStorage from 'lucide-react-native/icons/hard-drive';
+import GlyphSave from 'lucide-react-native/icons/save';
+import GlyphExternal from 'lucide-react-native/icons/external-link';
+import GlyphClock from 'lucide-react-native/icons/clock';
+const icons = {
+  document: GlyphDocument,
+  qr: GlyphQr,
+  issue: GlyphIssue,
+  menu: GlyphMenu,
+  chat: GlyphChat,
+  models: GlyphModels,
+  settings: GlyphSettings,
+  sliders: GlyphSliders,
+  info: GlyphInfo,
+  plus: GlyphPlus,
+  swap: GlyphSwap,
+  connected: GlyphConnected,
+  disconnected: GlyphDisconnected,
+  close: GlyphClose,
+  down: GlyphDown,
+  up: GlyphUp,
+  download: GlyphDownload,
+  offload: GlyphOffload,
+  trash: GlyphTrash,
+  eye: GlyphEye,
+  eyeOff: GlyphEyeOff,
+  search: GlyphSearch,
+  send: GlyphSend,
+  edit: GlyphEdit,
+  more: GlyphMore,
+  shield: GlyphShield,
+  check: GlyphCheck,
+  stop: GlyphStop,
+  image: GlyphImage,
+  arrow: GlyphArrow,
+  back: GlyphBack,
+  storage: GlyphStorage,
+  save: GlyphSave,
+  external: GlyphExternal,
+  clock: GlyphClock,
 };
-export type IconName = keyof typeof paths;
+export type IconName = keyof typeof icons;
 export function Icon({
   name,
   color,
@@ -49,21 +80,14 @@ export function Icon({
   color: string;
   size?: number;
 }) {
+  const Glyph = icons[name];
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
+    <Glyph
+      size={size}
+      color={color}
+      strokeWidth={1.75}
       accessibilityElementsHidden
-    >
-      <Path
-        d={paths[name]}
-        fill="none"
-        stroke={color}
-        strokeWidth={name === 'more' ? 3.5 : 1.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
+      importantForAccessibility="no-hide-descendants"
+    />
   );
 }
