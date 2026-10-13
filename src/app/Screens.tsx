@@ -382,12 +382,6 @@ function SettingsScreen({ app }: { app: AppController }) {
       >
         {section === 'General' ? (
           <>
-            <Text
-              accessibilityRole="header"
-              style={[styles.section, { color: colors.accent }]}
-            >
-              General
-            </Text>
             <Text style={[styles.section, { color: colors.accent }]}>
               Hugging Face
             </Text>
@@ -439,22 +433,10 @@ function SettingsScreen({ app }: { app: AppController }) {
           </>
         ) : section === 'Host & Connect' ? (
           <>
-            <Text
-              accessibilityRole="header"
-              style={[styles.section, { color: colors.accent }]}
-            >
-              Host &amp; Connect
-            </Text>
             <LanSettings app={app} />
           </>
         ) : section === 'Model defaults' ? (
           <>
-            <Text
-              accessibilityRole="header"
-              style={[styles.section, { color: colors.accent }]}
-            >
-              Model defaults
-            </Text>
             <View
               style={[
                 styles.group,
@@ -518,7 +500,6 @@ function InfoSection({ app }: { app: AppController }) {
   ];
   return (
     <View>
-      <Text style={[styles.section, { color: colors.accent }]}>About app</Text>
       <View style={styles.brand}>
         <Icon name="chat" color={colors.accent} size={44} />
         <Text style={[styles.brandName, { color: colors.text }]}>LLMHub</Text>
