@@ -1,3 +1,4 @@
+import { PopupHost } from '../ui/Popups';
 import { useState } from 'react';
 import { DeleteChatDialog } from '../ui/DeleteChatDialog';
 import { version } from '../../package.json';
@@ -169,6 +170,7 @@ export function ScreenContent({ app }: { app: AppController }) {
           Save one JSON file with this conversation and its images.
         </Text>
       </Sheet>
+      <PopupHost colors={colors} />
       <DeleteChatDialog
         title={
           Platform.OS === 'ios' && historyPresented

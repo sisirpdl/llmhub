@@ -564,8 +564,8 @@ test('keeps generated tool calls and reasoning in native history without executi
 });
 
 test('clears migration backups only after successfully committing cleared history', async () => {
-  const { Alert } = require('react-native') as typeof import('react-native');
-  const alert = jest.spyOn(Alert, 'alert');
+  const Popups = require('../ui/Popups') as typeof import('../ui/Popups');
+  const alert = jest.spyOn(Popups, 'showDialog').mockImplementation(() => {});
   await ReactTestRenderer.act(async () => {
     renderers.push(ReactTestRenderer.create(<Harness context={null} />));
   });

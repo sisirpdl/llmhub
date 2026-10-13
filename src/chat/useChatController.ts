@@ -1,6 +1,7 @@
+import { showDialog } from '../ui/Popups';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import type { TokenData, RNLlamaOAICompatibleMessage } from 'llama.rn';
 import type { ChatEngine } from '../lan/protocol';
@@ -560,7 +561,7 @@ export function useChatController({
   }
   function resetConversation() {
     if (busy.current) return;
-    Alert.alert(
+    showDialog(
       'Clear conversation?',
       'All messages in this conversation will be removed from this device.',
       [

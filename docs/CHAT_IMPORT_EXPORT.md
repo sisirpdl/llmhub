@@ -30,7 +30,7 @@ Future LAN/SDK/P2P chat-document interfaces must use this same document rather t
 ## User controls
 
 - Android: chat header **⋮ → Export chat**; **Settings → General → Import chat**.
-- iOS: header **⋮** uses ActionSheetIOS; **Import chat** is in **Settings → General**.
+- iOS: header **⋮** opens a themed action sheet; **Import chat** is in **Settings → General**.
 - Export opens the system save dialog. Import opens the system document picker and adds/selects a new conversation; existing chats are retained.
 - Model settings remain beside the composer model chip. The header menu does not open settings.
 - About app is the final Settings selector tab and includes engine diagnostics, removed from Android destinations and iOS tabs.

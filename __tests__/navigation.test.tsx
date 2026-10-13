@@ -1,3 +1,4 @@
+import * as Popups from '../src/ui/Popups';
 import { DeleteChatDialog } from '../src/ui/DeleteChatDialog';
 import React from 'react';
 import Renderer from 'react-test-renderer';
@@ -9,7 +10,7 @@ jest.mock('../src/support/submitIssueReport', () => ({
   clearPendingIssueSubmission: jest.fn(),
 }));
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, ActionSheetIOS, Alert, TextInput } from 'react-native';
+import { Platform, Alert, TextInput } from 'react-native';
 import { exportChat, importChatFile } from '../src/chat/chatTransfer';
 import { useAppController, type AppController } from '../src/app/AppController';
 import AndroidAppShell from '../src/app/AppShell.android';
@@ -94,7 +95,7 @@ test('Android drawer navigates to chat and exposes a model picker', async () => 
 test('iOS keeps three tabs and opens conversations from its native navigation menu', async () => {
   let renderer: Renderer.ReactTestRenderer;
   const menu = jest
-    .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+    .spyOn(Popups, 'showActionMenu')
     .mockImplementation((options, callback) =>
       callback(options.options.indexOf('Conversations')),
     );
@@ -131,15 +132,9 @@ test.each(['android', 'ios'] as const)(
     let renderer: Renderer.ReactTestRenderer;
     let select = () => {};
     const sheet = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .spyOn(Popups, 'showActionMenu')
       .mockImplementation((_options, callback) => {
         select = () => callback(1);
-      });
-    const alert = jest
-      .spyOn(Alert, 'alert')
-      .mockImplementation((_title, _message, buttons) => {
-        select = () =>
-          buttons?.find(button => button.text === 'Camera')?.onPress?.();
       });
     await Renderer.act(async () => {
       renderer = Renderer.create(<Harness platform={platform} />);
@@ -160,7 +155,6 @@ test.each(['android', 'ios'] as const)(
     expect(app.route).toBe('chat');
     await Renderer.act(async () => renderer!.unmount());
     sheet.mockRestore();
-    alert.mockRestore();
   },
 );
 
@@ -170,7 +164,7 @@ test.each(['android', 'ios'] as const)(
     let renderer: Renderer.ReactTestRenderer;
     let selection = 'Documents';
     const menu = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .spyOn(Popups, 'showActionMenu')
       .mockImplementation((options, callback) =>
         callback(options.options.indexOf(selection)),
       );
@@ -340,10 +334,10 @@ test('Android export saves the current canonical chat; Settings import opens a n
   await Renderer.act(async () => renderer!.unmount());
 });
 
-test('iOS chat menu uses a native action sheet with export instead of model settings', async () => {
+test('iOS chat menu uses a themed action sheet with export instead of model settings', async () => {
   let callback: (index: number) => void = () => {};
   const sheet = jest
-    .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+    .spyOn(Popups, 'showActionMenu')
     .mockImplementation((_options, cb) => {
       callback = cb;
     });
@@ -361,6 +355,7 @@ test('iOS chat menu uses a native action sheet with export instead of model sett
   });
   expect(sheet).toHaveBeenCalledWith(
     {
+      title: 'Chat actions',
       options: ['Cancel', 'Export chat', 'Ask your documents', 'Delete chat'],
       destructiveButtonIndex: 3,
       cancelButtonIndex: 0,
@@ -382,7 +377,7 @@ test.each(['android', 'ios'] as const)(
     const submitting = submitIssueReport as jest.Mock;
     submitting.mockClear();
     const menu = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .spyOn(Popups, 'showActionMenu')
       .mockImplementation((options, callback) =>
         callback(options.options.indexOf('Report an issue')),
       );
@@ -464,7 +459,7 @@ test.each(['android', 'ios'] as const)(
     let renderer: Renderer.ReactTestRenderer;
     let selection: (index: number) => void = () => {};
     const sheet = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .spyOn(Popups, 'showActionMenu')
       .mockImplementation((_options, callback) => {
         selection = callback;
       });

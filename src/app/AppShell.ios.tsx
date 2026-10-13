@@ -1,12 +1,6 @@
+import { showActionMenu } from '../ui/Popups';
 import { modelLabel } from '../models/modelLabels';
-import {
-  ActionSheetIOS,
-  Pressable,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AppController, Route } from './AppController';
 import { ScreenContent } from './Screens';
@@ -21,8 +15,9 @@ export default function IOSAppShell({ app }: { app: AppController }) {
   const insets = useSafeAreaInsets();
   const { colors } = app;
   function openNavigation() {
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionMenu(
       {
+        title: 'Navigation',
         options: [
           'Cancel',
           'Conversations',

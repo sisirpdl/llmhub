@@ -1,3 +1,4 @@
+import { PopupHost } from './Popups';
 import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
@@ -160,6 +161,7 @@ export function Sheet({
               colors={colors}
             />
           </View>
+          <PopupHost colors={colors} active={visible} priority={1} />
           {scroll ? (
             <ScrollView
               keyboardShouldPersistTaps="handled"

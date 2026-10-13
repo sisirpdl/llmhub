@@ -1,6 +1,6 @@
+import { showDialog } from '../ui/Popups';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   AppState,
   Linking,
   Platform,
@@ -140,7 +140,7 @@ export function GGUFVariants({
     </Pressable>
   );
   const info = () =>
-    Alert.alert(
+    showDialog(
       'About the size filter',
       'Likely fits shows model files up to 80% of the app’s RAM budget, including the selected vision projector. Filtered by file size, not measured RAM usage. Models need extra memory while running. Longer context uses more memory, but does not change the download size. All shows larger files and unknown sizes.',
     );

@@ -1,6 +1,6 @@
 # Report an issue
 
-Android's main sidebar provides **Report an issue**. iOS provides it in the header's native navigation menu. Settings does not duplicate this action. The form collects a title, description and optional reproduction steps. Basic app/platform/OS versions are optional and off by default; users can see the exact details before including them. Chats, documents, model files, tokens and logs are never collected automatically.
+Android's main sidebar provides **Report an issue**. iOS provides it in the header's themed navigation menu. Settings does not duplicate this action. The form collects a title, description and optional reproduction steps. Basic app/platform/OS versions are optional and off by default; users can see the exact details before including them. Chats, documents, model files, tokens and logs are never collected automatically.
 
 **Save draft** writes one draft to private AsyncStorage. Closing a changed form asks before discarding unsaved edits. **Submit report** saves the draft first and sends it over HTTPS to the configured Supabase Edge Function. Success appears only after a matching server receipt; the saved draft is then cleared. Failed submissions keep the draft for explicit retry. Old drafts are never uploaded automatically.
 

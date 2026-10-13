@@ -1,4 +1,5 @@
-import { ActionSheetIOS, Alert, Platform } from 'react-native';
+import { showDialog, showActionMenu } from '../ui/Popups';
+import { Platform } from 'react-native';
 import { exportChat, importChatFile } from '../chat/chatTransfer';
 import { removeChatImages } from '../chat/attachments';
 import {
@@ -154,7 +155,7 @@ export function useAppController() {
     if (chat.sending || lan.host || lan.remote || lan.pending) return false;
     if (!isVision(model) && (chat.hasImageHistory || chat.imageUri)) {
       const confirmed = await new Promise<boolean>(resolve =>
-        Alert.alert(
+        showDialog(
           'Switch to a text model?',
           'Messages and saved images stay in this chat. This model will only receive their text. Remove any pending image before sending.',
           [
@@ -209,8 +210,9 @@ export function useAppController() {
     if (chat.sending || chat.deleting || !chat.loaded || transferBusy.current)
       return;
     if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+      showActionMenu(
         {
+          title: 'Chat actions',
           options: [
             'Cancel',
             'Export chat',
@@ -240,21 +242,17 @@ export function useAppController() {
       if (models.context && isVision(models.model)) chat.attachImage(source);
       else setVisionSetupVisible(true);
     };
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Camera', 'Gallery'], cancelButtonIndex: 0 },
-        index => {
-          if (index === 1) choose('camera');
-          if (index === 2) choose('gallery');
-        },
-      );
-    } else {
-      Alert.alert('Add image', 'Choose where to get your image.', [
-        { text: 'Camera', onPress: () => choose('camera') },
-        { text: 'Gallery', onPress: () => choose('gallery') },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    }
+    showActionMenu(
+      {
+        title: 'Add image',
+        options: ['Cancel', 'Camera', 'Gallery'],
+        cancelButtonIndex: 0,
+      },
+      index => {
+        if (index === 1) choose('camera');
+        if (index === 2) choose('gallery');
+      },
+    );
   }
   return {
     issueReportVisible,

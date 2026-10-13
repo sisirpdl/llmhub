@@ -1,5 +1,6 @@
+import { showDialog } from '../ui/Popups';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, IconButton } from '../ui/Controls';
 import { Icon } from '../ui/Icon';
 import type { Colors } from '../ui/theme';
@@ -47,7 +48,7 @@ export function DocumentLibraryView({
     }
   }
   function confirmDelete(document: (typeof controller.documents)[number]) {
-    Alert.alert(
+    showDialog(
       'Delete from library?',
       `${document.name} and its index will be deleted. Chats using it will need to detach or replace it.`,
       [

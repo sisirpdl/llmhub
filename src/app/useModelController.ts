@@ -1,5 +1,6 @@
+import { showDialog } from '../ui/Popups';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 import { getBackendDevicesInfo, initLlama, type LlamaContext } from 'llama.rn';
 import RNFS from 'react-native-fs';
 import RNBlobUtil from 'react-native-blob-util';
@@ -393,7 +394,7 @@ export function useModelController(options?: {
       );
       return;
     }
-    Alert.alert(
+    showDialog(
       'Delete model?',
       `Remove ${item.displayName} from this device? Your conversations will be kept.`,
       [

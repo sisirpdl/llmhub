@@ -1,6 +1,6 @@
+import { showDialog } from '../ui/Popups';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Platform,
   StyleSheet,
   Switch,
@@ -122,7 +122,7 @@ export function IssueReportSheet({
       onClose();
       return;
     }
-    Alert.alert(
+    showDialog(
       'Discard unsaved changes?',
       'Your previously saved draft will be kept.',
       [

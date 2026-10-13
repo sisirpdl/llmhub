@@ -1,8 +1,8 @@
+import { showPassage } from '../ui/Popups';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { memo, useRef, useState } from 'react';
 import { messageText, imageUrls } from './chatDocument';
 import {
-  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -196,7 +196,7 @@ export function ChatView({
               key={source.id}
               accessibilityRole="button"
               onPress={() =>
-                Alert.alert(
+                showPassage(
                   `${source.documentName}${
                     source.page ? ` · page ${source.page}` : ''
                   }`,

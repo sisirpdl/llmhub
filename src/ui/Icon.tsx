@@ -1,3 +1,4 @@
+import GlyphCamera from 'lucide-react-native/icons/camera';
 import GlyphDocument from 'lucide-react-native/icons/file-text';
 import GlyphQr from 'lucide-react-native/icons/qr-code';
 import GlyphIssue from 'lucide-react-native/icons/message-square-warning';
@@ -34,6 +35,7 @@ import GlyphSave from 'lucide-react-native/icons/save';
 import GlyphExternal from 'lucide-react-native/icons/external-link';
 import GlyphClock from 'lucide-react-native/icons/clock';
 const icons = {
+  camera: GlyphCamera,
   document: GlyphDocument,
   qr: GlyphQr,
   issue: GlyphIssue,
