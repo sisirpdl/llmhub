@@ -816,8 +816,6 @@ test('camera and gallery are blocked for a text model', async () => {
 });
 
 test('deletes inactive and last chats durably without changing the current draft or deleting library documents', async () => {
-  const { Alert } = require('react-native') as typeof import('react-native');
-  const alert = jest.spyOn(Alert, 'alert');
   await ReactTestRenderer.act(async () => {
     renderers.push(ReactTestRenderer.create(<Harness context={null} />));
   });
@@ -840,10 +838,9 @@ test('deletes inactive and last chats durably without changing the current draft
     chat.toggleDocument('document-biology');
     chat.deleteConversation(first);
   });
-  const confirm = () =>
-    alert.mock.calls.at(-1)![2]!.find(button => button.text === 'Delete')!
-      .onPress!();
+  const confirm = () => chat.confirmDeleteConversation();
   expect(chat.history).toHaveLength(2); // Confirmation alone changes nothing.
+  expect(chat.pendingDelete?.id).toBe(first);
   await ReactTestRenderer.act(async () => {
     await confirm();
   });
@@ -866,12 +863,9 @@ test('deletes inactive and last chats durably without changing the current draft
   expect(chat.documentIds).toEqual([]);
   expect(chat.draft).toBe('');
   expect(chat.deleting).toBe(false);
-  alert.mockRestore();
 });
 
 test('failed deletion keeps messages and skips attachment and migration cleanup', async () => {
-  const { Alert } = require('react-native') as typeof import('react-native');
-  const alert = jest.spyOn(Alert, 'alert');
   await ReactTestRenderer.act(async () => {
     renderers.push(ReactTestRenderer.create(<Harness context={null} />));
   });
@@ -885,19 +879,20 @@ test('failed deletion keeps messages and skips attachment and migration cleanup'
   await ReactTestRenderer.act(async () => chat.deleteConversation());
   (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Full'));
   await ReactTestRenderer.act(async () => {
-    await alert.mock.calls.at(-1)![2]!.find(button => button.text === 'Delete')!
-      .onPress!();
+    await chat.confirmDeleteConversation();
   });
   expect(chat.currentId).toBe(id);
   expect(chat.messageItems[0].content).toBe('Keep me');
   expect(chat.error).toContain('Your messages were kept');
+  expect(chat.deleteError).toContain('Your messages were kept');
+  expect(chat.pendingDelete?.id).toBe(id);
+  await ReactTestRenderer.act(async () => chat.cancelDeleteConversation());
+  expect(chat.pendingDelete).toBeNull();
   expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
   expect(chat.deleting).toBe(false);
-  alert.mockRestore();
 });
 
 test('deletion removes only images no longer referenced by another chat', async () => {
-  const { Alert } = require('react-native') as typeof import('react-native');
   const fs = require('react-native-fs').default;
   const { importedConversation, HISTORY_KEY } = require('./conversationStore');
   const shared = 'file:///docs/chat-images/shared.jpg';
@@ -921,7 +916,6 @@ test('deletion removes only images no longer referenced by another chat', async 
       ? JSON.stringify({ currentId: second.id, conversations: [first, second] })
       : null,
   );
-  const alert = jest.spyOn(Alert, 'alert');
   fs.exists.mockResolvedValue(true);
   try {
     await ReactTestRenderer.act(async () => {
@@ -930,15 +924,12 @@ test('deletion removes only images no longer referenced by another chat', async 
     expect(chat.loaded).toBe(true);
     await ReactTestRenderer.act(async () => chat.deleteConversation(first.id));
     await ReactTestRenderer.act(async () => {
-      await alert.mock.calls
-        .at(-1)![2]!
-        .find(button => button.text === 'Delete')!.onPress!();
+      await chat.confirmDeleteConversation();
     });
     expect(fs.unlink).toHaveBeenCalledWith('/docs/chat-images/unique.jpg');
     expect(fs.unlink).not.toHaveBeenCalledWith('/docs/chat-images/shared.jpg');
     expect(chat.currentId).toBe(second.id);
   } finally {
-    alert.mockRestore();
     fs.exists.mockResolvedValue(false);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   }

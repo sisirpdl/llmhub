@@ -1,3 +1,4 @@
+import { DeleteChatDialog } from '../src/ui/DeleteChatDialog';
 import React from 'react';
 import Renderer from 'react-test-renderer';
 import { DocumentLibraryView } from '../src/documents/DocumentLibraryView';
@@ -467,7 +468,7 @@ test.each(['android', 'ios'] as const)(
       .mockImplementation((_options, callback) => {
         selection = callback;
       });
-    const confirmation = jest.spyOn(Alert, 'alert');
+    const systemAlert = jest.spyOn(Alert, 'alert');
     await Renderer.act(async () => {
       renderer = Renderer.create(<Harness platform={platform} />);
     });
@@ -488,17 +489,30 @@ test.each(['android', 'ios'] as const)(
     await Renderer.act(async () => {
       app.setHistoryVisible(true);
     });
+    if (platform === 'ios')
+      await Renderer.act(async () =>
+        renderer!.root.findByProps({ title: 'Conversations' }).props.onShow(),
+      );
     await Renderer.act(async () => {
       renderer!.root
         .findAllByProps({ accessibilityLabel: 'Delete chat: Keep this chat' })
         .find(node => typeof node.props.onPress === 'function')!
         .props.onPress();
     });
-    expect(confirmation).toHaveBeenLastCalledWith(
-      'Delete chat?',
-      expect.any(String),
-      expect.any(Array),
-    );
+    expect(systemAlert).not.toHaveBeenCalled();
+    const dialog = () => renderer!.root.findByType(DeleteChatDialog);
+    if (platform === 'ios') {
+      expect(dialog().props.title).toBeNull();
+      await Renderer.act(async () =>
+        renderer!.root
+          .findByProps({ title: 'Conversations' })
+          .props.onDismiss(),
+      );
+    }
+    expect(dialog().props.title).toBe('Keep this chat');
+    expect(dialog().props.colors).toBe(app.colors);
+    await Renderer.act(async () => dialog().props.onCancel());
+    expect(app.chat.pendingDelete).toBeNull();
     expect(app.chat.currentId).toBe(second);
     expect(app.chat.history.some(chat => chat.id === first)).toBe(true);
     await Renderer.act(async () => {
@@ -515,14 +529,12 @@ test.each(['android', 'ios'] as const)(
       else renderer!.root.findByProps({ label: 'Delete chat' }).props.onPress();
     });
     await Renderer.act(async () => {
-      await confirmation.mock.calls
-        .at(-1)![2]!
-        .find(button => button.text === 'Delete')!.onPress!();
+      await dialog().findByProps({ label: 'Delete' }).props.onPress();
     });
     expect(app.chat.currentId).toBe(first);
     expect(app.chat.history.some(chat => chat.id === second)).toBe(false);
     await Renderer.act(async () => renderer!.unmount());
-    confirmation.mockRestore();
+    systemAlert.mockRestore();
     sheet.mockRestore();
   },
 );

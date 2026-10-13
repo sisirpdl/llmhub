@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { DeleteChatDialog } from '../ui/DeleteChatDialog';
 import { version } from '../../package.json';
 import {
   Platform,
@@ -28,6 +30,7 @@ import { LanSettings } from '../lan/LanSettings';
 import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
   const { colors, models, chat } = app;
+  const [historyPresented, setHistoryPresented] = useState(false);
   const openLanSettings = () => {
     app.setSettingsSection('Host & Connect');
     app.setRoute('settings');
@@ -166,6 +169,18 @@ export function ScreenContent({ app }: { app: AppController }) {
           Save one JSON file with this conversation and its images.
         </Text>
       </Sheet>
+      <DeleteChatDialog
+        title={
+          Platform.OS === 'ios' && historyPresented
+            ? null
+            : chat.pendingDelete?.title ?? null
+        }
+        colors={colors}
+        busy={chat.deleting}
+        error={chat.deleteError}
+        onCancel={chat.cancelDeleteConversation}
+        onDelete={chat.confirmDeleteConversation}
+      />
       <IssueReportSheet
         visible={app.issueReportVisible}
         onClose={() => app.setIssueReportVisible(false)}
@@ -220,6 +235,10 @@ export function ScreenContent({ app }: { app: AppController }) {
         visible={app.historyVisible}
         onClose={() => app.setHistoryVisible(false)}
         title="Conversations"
+        onShow={() => {
+          if (Platform.OS === 'ios') setHistoryPresented(true);
+        }}
+        onDismiss={() => setHistoryPresented(false)}
         colors={colors}
       >
         <History app={app} onSelect={() => app.setHistoryVisible(false)} />
@@ -319,7 +338,10 @@ export function History({
                 !chat.loaded ||
                 Boolean(app.transfer)
               }
-              onPress={() => chat.deleteConversation(item.id)}
+              onPress={() => {
+                onSelect();
+                chat.deleteConversation(item.id);
+              }}
             />
           </View>
         ))

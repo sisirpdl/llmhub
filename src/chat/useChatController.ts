@@ -68,6 +68,11 @@ export function useChatController({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [error, setError] = useState('');
   const [omittedNotice, setOmittedNotice] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -489,68 +494,69 @@ export function useChatController({
     if (busy.current || !loaded) return;
     const target = snapshot.current.conversations.find(c => c.id === id);
     if (!target) return;
-    Alert.alert(
-      'Delete chat?',
-      `“${target.title}” and its messages will be deleted from this device. Documents remain in your library.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (busy.current || !loaded) return;
-            const before = snapshot.current;
-            const removed = before.conversations.find(c => c.id === id);
-            if (!removed) return;
-            busy.current = true;
-            setDeleting(true);
-            if (saveTimer.current) clearTimeout(saveTimer.current);
-            const remaining = before.conversations.filter(c => c.id !== id);
-            const next =
-              before.currentId === id
-                ? [...remaining].sort((a, b) => b.updatedAt - a.updatedAt)[0] ||
-                  fresh(model.id)
-                : remaining.find(c => c.id === before.currentId) ||
-                  remaining[0] ||
-                  fresh(model.id);
-            const value = {
-              currentId: next.id,
-              conversations: remaining.length ? remaining : [next],
-            };
-            let committed = false;
-            try {
-              await persist(value);
-              committed = true;
-              snapshot.current = value;
-              setConversations(value.conversations);
-              setCurrentId(value.currentId);
-              if (before.currentId === id) clearDraft();
-              else setError('');
-              const referenced = new Set(
-                value.conversations.flatMap(c => c.messages.flatMap(imageUrls)),
-              );
-              if (before.currentId !== id && imageUri) referenced.add(imageUri);
-              await removeChatImages(
-                removed.messages
-                  .flatMap(imageUrls)
-                  .filter(uri => !referenced.has(uri)),
-              );
-              await AsyncStorage.removeItem(PREVIOUS_KEY);
-              await AsyncStorage.removeItem(LEGACY_KEY);
-            } catch {
-              setError(
-                committed
-                  ? 'Chat deleted, but some stored attachments or migration backups could not be cleaned up.'
-                  : 'Chat could not be deleted. Your messages were kept.',
-              );
-            } finally {
-              busy.current = false;
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-    );
+    setDeleteError('');
+    setPendingDelete({ id: target.id, title: target.title });
+  }
+  function cancelDeleteConversation() {
+    if (busy.current) return;
+    setPendingDelete(null);
+    setDeleteError('');
+  }
+  async function confirmDeleteConversation() {
+    if (busy.current || !loaded) return;
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setDeleteError('');
+    const before = snapshot.current;
+    const removed = before.conversations.find(c => c.id === id);
+    if (!removed) {
+      setPendingDelete(null);
+      return;
+    }
+    busy.current = true;
+    setDeleting(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    const remaining = before.conversations.filter(c => c.id !== id);
+    const next =
+      before.currentId === id
+        ? [...remaining].sort((a, b) => b.updatedAt - a.updatedAt)[0] ||
+          fresh(model.id)
+        : remaining.find(c => c.id === before.currentId) ||
+          remaining[0] ||
+          fresh(model.id);
+    const value = {
+      currentId: next.id,
+      conversations: remaining.length ? remaining : [next],
+    };
+    let committed = false;
+    try {
+      await persist(value);
+      committed = true;
+      snapshot.current = value;
+      setConversations(value.conversations);
+      setCurrentId(value.currentId);
+      if (before.currentId === id) clearDraft();
+      else setError('');
+      const referenced = new Set(
+        value.conversations.flatMap(c => c.messages.flatMap(imageUrls)),
+      );
+      if (before.currentId !== id && imageUri) referenced.add(imageUri);
+      await removeChatImages(
+        removed.messages.flatMap(imageUrls).filter(uri => !referenced.has(uri)),
+      );
+      await AsyncStorage.removeItem(PREVIOUS_KEY);
+      await AsyncStorage.removeItem(LEGACY_KEY);
+    } catch {
+      const message = committed
+        ? 'Chat deleted, but some stored attachments or migration backups could not be cleaned up.'
+        : 'Chat could not be deleted. Your messages were kept.';
+      setError(message);
+      if (!committed) setDeleteError(message);
+    } finally {
+      if (committed) setPendingDelete(null);
+      busy.current = false;
+      setDeleting(false);
+    }
   }
   function resetConversation() {
     if (busy.current) return;
@@ -751,6 +757,10 @@ export function useChatController({
     setDraft,
     sending,
     deleting,
+    pendingDelete,
+    deleteError,
+    confirmDeleteConversation,
+    cancelDeleteConversation,
     loaded,
     error,
     omittedNotice,
