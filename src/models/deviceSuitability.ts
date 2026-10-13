@@ -105,7 +105,7 @@ export const storageShortfall = (
     : Math.max(0, size + projectorSize + STORAGE_MARGIN - free);
 
 // Browsing heuristic only: this does not estimate context cache or engine compatibility.
-export const MODEL_FILE_BUDGET_FRACTION = 0.79;
+export const MODEL_FILE_BUDGET_FRACTION = 0.8;
 export function fileSizeFit(
   size: number,
   memory: DeviceMemory | null,

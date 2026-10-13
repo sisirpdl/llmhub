@@ -11,7 +11,7 @@ Bare React Native 0.86 with TypeScript, React 19.2.3, New Architecture enabled, 
 | Model lifecycle | `src/app/useModelController.ts` | Download/load/offload/delete, one active context, foreground lifecycle. |
 | Artifact storage | `src/models/modelStore.ts`, `importedModels.ts` | Private model files, validation, checksums and saved import metadata. |
 | Discovery | `src/models/huggingFace.ts`, `ModelDiscovery.tsx`, `GGUFVariants.tsx` | Remote repository/file metadata and phone-focused presentation. |
-| Memory guidance | `src/models/ggufMetadata.ts`, `deviceSuitability.ts`, `src/device/memory.ts` | Immediate 79%-of-app-budget file-size filtering and native memory readings; detailed metadata estimator retained separately. |
+| Memory guidance | `src/models/ggufMetadata.ts`, `deviceSuitability.ts`, `src/device/memory.ts` | Immediate 80%-of-app-budget file-size filtering and native memory readings; detailed metadata estimator retained separately. |
 | Chat | `src/chat/useChatController.ts`, `promptBuilder.ts`, `attachments.ts` | Streamed responses, saved conversations/images, retrieval context and native message selection. |
 | Chat interchange | `src/chat/chatDocument.ts`, `conversationStore.ts`, `chatTransfer.ts` | Native OpenAI messages, v3 storage, legacy migration and portable JSON import/export. |
 | Local documents | `src/documents/documentStore.ts`, `documentIndex.ts`, `useDocumentIndex.ts` | PDF/Markdown/TXT import, cached page-aware chunks and chat-scoped keyword retrieval. |

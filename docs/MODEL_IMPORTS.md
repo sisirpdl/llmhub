@@ -56,7 +56,7 @@ Automated checks cover API parsing, pagination restrictions, authorization, impo
 
 The Hub browser opens on Trending + Text. Trending and Most downloaded request 10 repositories at a time; Browse requests 20. Most downloaded uses the Hub's monthly download metric. Search text remains when changing rank or Text/Vision/All. Show more follows the Hub's pagination cursor without sending tokens to another API host.
 
-Repository files default to **Likely fits**, an immediate file-size filter. A file is included when its size is at most **79% of the app's RAM budget**. Vision mode includes the selected projector's size in that comparison. This is not a measured RAM requirement or an engine compatibility check: context cache, runtime buffers and image processing can need additional memory. All exposes larger files and unknown sizes; split GGUF files remain disabled. Browsing does not fetch or parse individual GGUF headers.
+Repository files default to **Likely fits**, an immediate file-size filter. A file is included when its size is at most **80% of the app's RAM budget**. Vision mode includes the selected projector's size in that comparison. This is not a measured RAM requirement or an engine compatibility check: context cache, runtime buffers and image processing can need additional memory. All exposes larger files and unknown sizes; split GGUF files remain disabled. Browsing does not fetch or parse individual GGUF headers.
 
 Android reads system memory plus the app's current PSS and reserves OS headroom; the budget is capped at 60% of physical memory. iOS uses `os_proc_available_memory` plus the app's current physical footprint, with a similar cap and reserve. These are conservative heuristics and require calibration on physical devices. They do not promise that every model classified as fitting can load. System memory pressure and engine architecture support can still cause a load failure.
 
@@ -75,7 +75,7 @@ This update adds a native memory reader in both app targets. A Metro reload alon
 ### Additional phone checks
 
 - Verify Trending/Text defaults, all three tabs, search retention, type filtering, and Show more.
-- Compare Likely fits with All; verify the 79% boundary against the app budget; select a vision projector and confirm the combined size updates.
+- Compare Likely fits with All; verify the 80% boundary against the app budget; select a vision projector and confirm the combined size updates.
 - Test low storage: the fitting variant remains visible and the download action is disabled.
 - Check that unavailable native memory or unknown file sizes show Unknown; All must remain accessible. Confirm no GGUF-header requests are made while browsing.
 - Open model settings while a download is updating. Edits must stay staged; Cancel and Reset/Apply must behave correctly.
@@ -88,7 +88,7 @@ This update adds a native memory reader in both app targets. A Metro reload alon
 
 All three Hub tabs default to models up to 4B parameters. Filters offer up to 8B and Any size, and search retains the selected size range. The API parameter filter is backed by a conservative local check using available GGUF/safetensors totals and parameter counts in repository names. Unknown sizes are excluded from limited lists and remain accessible under Any size. Bounded pagination refills after exclusions while preserving ranking; sparse results can show fewer entries with Show more available. Parameter count is a discovery hint, not a RAM-fit guarantee.
 
-The Likely fits empty state distinguishes unavailable device memory, unknown file sizes, a missing vision projector, split files, and files above the 79% limit. Context chips are labeled as token counts. The screen does not show calculated runtime RAM requirements or lower-context fit suggestions.
+The Likely fits empty state distinguishes unavailable device memory, unknown file sizes, a missing vision projector, split files, and files above the 80% limit. Context chips are labeled as token counts. The screen does not show calculated runtime RAM requirements or lower-context fit suggestions.
 
 ## Your models and contextual suggestions
 

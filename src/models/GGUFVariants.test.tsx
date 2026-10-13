@@ -146,16 +146,17 @@ test('browses and enables downloads without requesting GGUF metadata', async () 
   );
   expect(reader).not.toHaveBeenCalled();
   expect(renderer.root.findByType(Button).props.disabled).toBe(false);
-  expect(text()).toContain('79% of the app’s RAM budget');
+  expect(text()).not.toContain('File-size limit:');
+  expect(text()).not.toContain('Filtered by file size.');
   expect(text()).not.toContain('Checking variants');
 });
 
 test('uses the app budget rather than total RAM and keeps a manual All option', async () => {
   await renderVariants({
     ...details,
-    files: [{ ...file, path: 'above.gguf', size: 4 * 1024 ** 3 }],
+    files: [{ ...file, path: 'above.gguf', size: 4.1 * 1024 ** 3 }],
   });
-  expect(text()).toContain('No variants are within 79%');
+  expect(text()).toContain('No variants match this size filter');
   expect(
     renderer.root.findAllByProps({ accessibilityLabel: 'Select above.gguf' }),
   ).toHaveLength(0);
@@ -194,7 +195,7 @@ test('the vision size filter includes the selected projector', async () => {
   const projector = {
     ...file,
     path: 'mmproj.gguf',
-    size: 1024 ** 3,
+    size: 1.1 * 1024 ** 3,
     projector: true,
   };
   const { Switch } = require('react-native');
@@ -214,7 +215,7 @@ test('the vision size filter includes the selected projector', async () => {
   expect(
     renderer.root.findAllByProps({ accessibilityLabel: `Select ${file.path}` }),
   ).toHaveLength(0);
-  expect(text()).toContain('No variants are within 79%');
+  expect(text()).toContain('No variants match this size filter');
 });
 
 test('unknown sizes and split files stay out of the default filter', async () => {

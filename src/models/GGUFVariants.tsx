@@ -18,11 +18,7 @@ import { Icon } from '../ui/Icon';
 import { formatBytes, type Colors } from '../ui/theme';
 import { compactNumber, type HubDetails, type HubFile } from './huggingFace';
 import { fromHub } from './importedModels';
-import {
-  fileSizeFit,
-  storageShortfall,
-  MODEL_FILE_BUDGET_FRACTION,
-} from './deviceSuitability';
+import { fileSizeFit, storageShortfall } from './deviceSuitability';
 const sizes = (value: number) =>
   value > 0
     ? value < 1024 ** 3
@@ -122,7 +118,7 @@ export function GGUFVariants({
       return 'Choose a vision projector to check the combined file size.';
     if (matching.every(file => file.split))
       return 'Split GGUF files are not supported.';
-    return 'No variants are within 79% of the app’s RAM budget. Open All to browse larger files or files with an unknown size.';
+    return 'No variants match this size filter. Open All to browse larger files or files with an unknown size.';
   };
   const chip = (label: string, active: boolean, onPress: () => void) => (
     <Pressable
@@ -146,7 +142,7 @@ export function GGUFVariants({
   const info = () =>
     Alert.alert(
       'About the size filter',
-      'Likely fits shows model files up to 79% of the app’s RAM budget. Vision models also include the selected projector file. This is a file-size filter, not a RAM requirement or compatibility check. Longer context and vision processing need extra memory. Actual memory use varies, and loading can still fail. All shows larger files and unknown sizes. Free storage is checked separately.',
+      'Likely fits shows model files up to 80% of the app’s RAM budget, including the selected vision projector. Filtered by file size, not measured RAM usage. Models need extra memory while running. Longer context uses more memory, but does not change the download size. All shows larger files and unknown sizes.',
     );
   return (
     <>
@@ -229,14 +225,6 @@ export function GGUFVariants({
             {hidden ? `${hidden} hidden` : files.length + ' variants'}
           </Text>
         </View>
-        <Text style={[s.small, { color: colors.muted }]}>
-          File-size limit:{' '}
-          {memory
-            ? sizes(memory.appBudgetBytes * MODEL_FILE_BUDGET_FRACTION)
-            : 'Unavailable'}{' '}
-          · 79% of the app’s RAM budget.
-          {'\n'}Filtered by file size. Actual RAM use varies.
-        </Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
