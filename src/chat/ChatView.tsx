@@ -27,6 +27,7 @@ export function ChatView({
   onSettings,
   onAttachImage,
   onDocuments,
+  onReportResponse,
   lanStatus,
   lanConnectionIssue,
 }: {
@@ -41,6 +42,7 @@ export function ChatView({
   onSettings?: () => void;
   onAttachImage?: () => void;
   onDocuments?: () => void;
+  onReportResponse?: (message: Message) => void;
   lanStatus?: 'remote' | 'hosting';
   lanConnectionIssue?: boolean;
 }) {
@@ -58,6 +60,7 @@ export function ChatView({
       item={item}
       colors={colors}
       sending={item.content ? false : chat.sending}
+      onReportResponse={onReportResponse}
     />
   );
 
@@ -352,10 +355,12 @@ const MessageBubble = memo(function MessageBubbleContent({
   item,
   colors,
   sending,
+  onReportResponse,
 }: {
   item: Message;
   colors: Colors;
   sending: boolean;
+  onReportResponse?: (message: Message) => void;
 }) {
   if (item.event === 'model-switch')
     return (
@@ -413,11 +418,34 @@ const MessageBubble = memo(function MessageBubbleContent({
             ? 'Thinking…'
             : 'No text content.')}
       </Text>
+      {item.role === 'assistant' &&
+      messageText(item).trim() &&
+      onReportResponse ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Report response"
+          hitSlop={8}
+          onPress={() => onReportResponse(item)}
+          style={styles.reportResponse}
+        >
+          <Icon name="issue" size={16} color={colors.muted} />
+          <Text style={[styles.caption, { color: colors.muted }]}>
+            Report response
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
+  reportResponse: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+  },
   divider: { alignItems: 'center', paddingVertical: 8 },
   messageImage: { width: 220, height: 180, borderRadius: 12, marginBottom: 10 },
   container: { flex: 1 },

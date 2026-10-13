@@ -28,10 +28,12 @@ export function IssueReportSheet({
   visible,
   onClose,
   colors,
+  initialDraft,
 }: {
   visible: boolean;
   onClose: () => void;
   colors: Colors;
+  initialDraft?: IssueDraft;
 }) {
   const [draft, setDraft] = useState<IssueDraft>(emptyIssueDraft);
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,13 @@ export function IssueReportSheet({
     setError('');
     setNotice('');
     changed.current = false;
+    if (initialDraft) {
+      setDraft(initialDraft);
+      failedRestore.current = false;
+      changed.current = true;
+      setLoading(false);
+      return;
+    }
     readIssueDraft()
       .then(value => {
         if (active) {
@@ -71,7 +80,7 @@ export function IssueReportSheet({
     return () => {
       active = false;
     };
-  }, [visible]);
+  }, [visible, initialDraft]);
   function edit(change: Partial<IssueDraft>) {
     setDraft(current => ({ ...current, ...change }));
     changed.current = true;
@@ -94,8 +103,8 @@ export function IssueReportSheet({
       await saveIssueDraft(draft);
       changed.current = false;
       if (report) {
-        await submitIssueReport(report);
-        setNotice('Report submitted. Thank you.');
+        const reportId = await submitIssueReport(report);
+        setNotice(`Report submitted. Reference: ${reportId}`);
         try {
           await clearIssueDraft();
           await clearPendingIssueSubmission();
@@ -143,14 +152,16 @@ export function IssueReportSheet({
   return (
     <Sheet
       visible={visible}
-      title="Report an issue"
+      title={initialDraft ? 'Report response' : 'Report an issue'}
       colors={colors}
       onClose={close}
     >
       <View style={styles.content}>
         <Text style={{ color: colors.muted }}>
           Submitting sends this form and any opted-in app details to LLMHub
-          support. Drafts stay on this device.
+          support. Drafts stay on this device. Review and remove any personal
+          information before submitting. Other chat messages, documents and
+          images are not automatically included.
         </Text>
         <Text style={{ color: colors.text }}>Title</Text>
         <TextInput
@@ -224,10 +235,9 @@ export function IssueReportSheet({
           <Text
             accessibilityLiveRegion="polite"
             style={{
-              color:
-                notice === 'Report submitted. Thank you.'
-                  ? colors.green
-                  : colors.muted,
+              color: notice.startsWith('Report submitted.')
+                ? colors.green
+                : colors.muted,
             }}
           >
             {notice}

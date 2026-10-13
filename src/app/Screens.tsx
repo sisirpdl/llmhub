@@ -1,3 +1,6 @@
+import { privacyPolicy } from '../support/privacyPolicy';
+import { responseReportDraft } from '../support/responseReport';
+import type { IssueDraft } from '../support/issueReport';
 import { PopupHost } from '../ui/Popups';
 import { useState } from 'react';
 import { DeleteChatDialog } from '../ui/DeleteChatDialog';
@@ -31,6 +34,7 @@ import { LanSettings } from '../lan/LanSettings';
 import { DocumentLibraryView } from '../documents/DocumentLibraryView';
 export function ScreenContent({ app }: { app: AppController }) {
   const { colors, models, chat } = app;
+  const [responseDraft, setResponseDraft] = useState<IssueDraft>();
   const [historyPresented, setHistoryPresented] = useState(false);
   const openLanSettings = () => {
     app.setSettingsSection('Host & Connect');
@@ -123,6 +127,10 @@ export function ScreenContent({ app }: { app: AppController }) {
               : app.setChatSettingsVisible(true)
           }
           onAttachImage={app.requestImageAttachment}
+          onReportResponse={message => {
+            setResponseDraft(responseReportDraft(message));
+            app.setIssueReportVisible(true);
+          }}
           onDocuments={() => app.setDocumentsVisible(true)}
         />
       ) : (
@@ -185,7 +193,11 @@ export function ScreenContent({ app }: { app: AppController }) {
       />
       <IssueReportSheet
         visible={app.issueReportVisible}
-        onClose={() => app.setIssueReportVisible(false)}
+        onClose={() => {
+          app.setIssueReportVisible(false);
+          setResponseDraft(undefined);
+        }}
+        initialDraft={responseDraft}
         colors={colors}
       />
       <NearbyTransferSheet
@@ -495,6 +507,7 @@ function SettingsScreen({ app }: { app: AppController }) {
 }
 function InfoSection({ app }: { app: AppController }) {
   const { colors, models } = app;
+  const [privacyVisible, setPrivacyVisible] = useState(false);
   const constants = Platform.constants as Record<string, unknown>;
   const rows = [
     ['App version', version],
@@ -554,6 +567,36 @@ function InfoSection({ app }: { app: AppController }) {
           </View>
         ))}
       </View>
+      <Button
+        label="Privacy policy"
+        icon="shield"
+        colors={colors}
+        onPress={() => setPrivacyVisible(true)}
+      />
+      <Text style={[styles.caption, { color: colors.muted }]}>
+        AI responses can be inaccurate. Verify important information. Use Report
+        response to flag offensive or unsafe output.
+      </Text>
+      <Sheet
+        visible={privacyVisible}
+        title="Privacy policy"
+        colors={colors}
+        onClose={() => setPrivacyVisible(false)}
+      >
+        {privacyPolicy.map(section => (
+          <View key={section.title} style={styles.privacySection}>
+            <Text style={[styles.section, { color: colors.text }]}>
+              {section.title}
+            </Text>
+            <Text
+              selectable
+              style={[styles.paragraph, { color: colors.muted }]}
+            >
+              {section.text}
+            </Text>
+          </View>
+        ))}
+      </Sheet>
       <Text style={[styles.caption, styles.footnote, { color: colors.muted }]}>
         These device details stay on your phone. When reporting an issue, you
         can choose to include basic app and OS information.
@@ -587,8 +630,9 @@ export function Onboarding({
         {'Your AI.\nYour device.'}
       </Text>
       <Text style={[styles.onboardingText, { color: colors.muted }]}>
-        A private space to ask, write, and explore. Your conversations run
-        locally and stay with you.
+        A private space to ask, write, and explore. Local chats run on your
+        phone. Connecting to a LAN host sends your prompts and selected document
+        context to that host.
       </Text>
       <View style={styles.onboardingRows}>
         {[
@@ -600,7 +644,7 @@ export function Onboarding({
           [
             'shield',
             'Chat offline',
-            'No account or cloud inference. Your prompts stay on device.',
+            'No account needed. In local mode, your prompts stay on this phone.',
           ],
           [
             'models',
@@ -634,6 +678,7 @@ export function Onboarding({
   );
 }
 const styles = StyleSheet.create({
+  privacySection: { marginBottom: 16 },
   settingsSelector: { flexGrow: 0, flexShrink: 0 },
   settingsTabs: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   settingsTab: {

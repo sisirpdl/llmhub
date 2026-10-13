@@ -48,11 +48,13 @@ function Harness({
   native = false,
   vision = false,
   retrieve,
+  onReportResponse,
 }: {
   context: LlamaContext | null;
   native?: boolean;
   vision?: boolean;
   retrieve?: (query: string) => Promise<RetrievedChunk[]>;
+  onReportResponse?: React.ComponentProps<typeof ChatView>['onReportResponse'];
 }) {
   chat = useChatController({
     context,
@@ -68,6 +70,7 @@ function Harness({
       colors={darkColors}
       active={Boolean(context)}
       vision={vision}
+      onReportResponse={onReportResponse}
       onModels={() => {}}
       onPicker={() => {}}
       settingsVisible={false}
@@ -933,4 +936,36 @@ test('deletion removes only images no longer referenced by another chat', async 
     fs.exists.mockResolvedValue(false);
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   }
+});
+
+test('report response selects only the assistant message and does not submit automatically', async () => {
+  const onReportResponse = jest.fn();
+  const context = {
+    completion: jest.fn().mockResolvedValue({ text: 'Selected reply' }),
+    stopCompletion: jest.fn(),
+  } as unknown as LlamaContext;
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(
+      <Harness context={context} onReportResponse={onReportResponse} />,
+    );
+    renderers.push(renderer);
+  });
+  await ReactTestRenderer.act(async () => {
+    chat.setDraft('Private user prompt');
+  });
+  await ReactTestRenderer.act(async () => {
+    await chat.sendMessage();
+  });
+  expect(onReportResponse).not.toHaveBeenCalled();
+  await ReactTestRenderer.act(async () => {
+    renderer!.root
+      .findByProps({ accessibilityLabel: 'Report response' })
+      .props.onPress();
+  });
+  expect(onReportResponse).toHaveBeenCalledTimes(1);
+  expect(onReportResponse.mock.calls[0][0]).toMatchObject({
+    role: 'assistant',
+    content: 'Selected reply',
+  });
 });
