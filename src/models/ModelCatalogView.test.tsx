@@ -120,6 +120,23 @@ test('an installed text model hides suggestions and does not promote missing vis
   expect(text()).toContain(textModel.displayName);
   expect(text()).not.toContain(visionModel.displayName);
 });
+test('labels user-added models as unreviewed and unsupported', async () => {
+  const imported = {
+    ...textModel,
+    id: 'import-example',
+    origin: 'huggingface' as const,
+    originalFileName: 'example.gguf',
+  };
+  controller.catalog = [imported];
+  controller.states[imported.id] = 'ready';
+  await catalog();
+  expect(text()).toContain('Unreviewed · Unsupported');
+  expect(
+    renderer.root.findByProps({
+      accessibilityLabel: 'Unreviewed and unsupported model',
+    }),
+  ).toBeTruthy();
+});
 test('low storage disables the recommendation but browsing remains available', async () => {
   controller.freeSpace = 0;
   await catalog();

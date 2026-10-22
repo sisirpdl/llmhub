@@ -1,0 +1,342 @@
+LLMHUB <-> SUPABASE
+====================
+
+This app currently uses Supabase for one feature only:
+
+    "Report an issue"
+
+It does not currently use Supabase Auth, Storage, Realtime, or direct
+database access from the mobile app.
+
+
+1. COMPLETE REQUEST FLOW
+========================
+
+  +-------------------------+
+  | LLMHub mobile app       |
+  |                         |
+  | IssueReportSheet        |
+  | submitIssueReport.ts    |
+  +------------+------------+
+               |
+               | HTTPS POST
+               | /functions/v1/submit-issue-report
+               | Content-Type: application/json
+               | apikey: sb_publishable_...
+               v
+  +-------------------------+
+  | Supabase API Gateway    |
+  |                         |
+  | Routes request to the  |
+  | Edge Function           |
+  +------------+------------+
+               |
+               v
+  +-------------------------+
+  | Edge Function           |
+  | submit-issue-report     |
+  |                         |
+  | 1. Checks POST method   |
+  | 2. Checks public key    |
+  | 3. Checks JSON body     |
+  | 4. Validates fields     |
+  | 5. Limits body to 32KB  |
+  +------------+------------+
+               |
+               | Server-side REST RPC request
+               | Uses service-role credential
+               v
+  +-------------------------+
+  | PostgreSQL RPC          |
+  | submit_issue_report()   |
+  |                         |
+  | 1. Locks admission      |
+  | 2. Checks duplicate ID  |
+  | 3. Enforces 100/hour    |
+  | 4. Inserts new report   |
+  | 5. Returns report ID    |
+  +------------+------------+
+               |
+               v
+  +-------------------------+
+  | PostgreSQL table        |
+  | public.issue_reports    |
+  |                         |
+  | id                      |
+  | created_at              |
+  | title                   |
+  | description             |
+  | steps                   |
+  | diagnostics             |
+  +-------------------------+
+
+  The response travels back through the same path:
+
+  issue_reports -> RPC -> Edge Function -> API Gateway -> mobile app
+
+  The app only shows success after the returned ID matches the submitted ID.
+
+
+2. WHAT IS STORED WHERE?
+=========================
+
+  ON THE PHONE
+  ------------
+
+  +---------------------------------------+
+  | Issue form and unsent draft           |
+  |                                       |
+  | AsyncStorage                          |
+  | @llmhub/pending-issue-submission-v1   |
+  +---------------------------------------+
+
+  Draft behavior:
+
+    - A draft is saved locally before submission.
+    - Network failure keeps the draft on the phone.
+    - The app saves a receipt ID for safe retry.
+    - A successful submission clears the pending receipt.
+    - Old drafts are not uploaded automatically.
+
+
+  IN THE APP BUNDLE
+  -----------------
+
+  File:
+
+    src/support/reportBackend.json
+
+  Contains:
+
+    - Supabase project URL
+    - Supabase publishable key
+
+  These values are public client configuration. They identify the project
+  but are not passwords.
+
+
+  IN SUPABASE
+  ----------
+
+  Table:
+
+    public.issue_reports
+
+  Each successful report stores:
+
+    - id: UUID used for idempotent retries
+    - created_at: database-generated receipt time
+    - title: 1 to 120 characters
+    - description: 1 to 4000 characters
+    - steps: up to 2000 characters
+    - diagnostics: optional app/platform/OS JSON
+
+
+3. KEYS AND SECRETS
+===================
+
+  +-------------------------------+-------------------------------+
+  | Value                         | Where it belongs              |
+  +-------------------------------+-------------------------------+
+  | Supabase URL                  | Mobile app and Edge Function |
+  | sb_publishable_... key        | Mobile app and Function      |
+  | ISSUE_REPORT_PUBLISHABLE_KEY  | Supabase Edge Function secret|
+  | SUPABASE_URL                  | Supabase-provided Function   |
+  | SUPABASE_SERVICE_ROLE_KEY    | Supabase-provided Function   |
+  +-------------------------------+-------------------------------+
+
+  SAFE IN THE APP:
+
+    sb_publishable_...
+
+  NEVER PUT IN THE APP:
+
+    SUPABASE_SERVICE_ROLE_KEY
+
+  The service-role key is server-only. It can bypass Row Level Security.
+  Supabase automatically provides it to the deployed Edge Function.
+
+  The custom Function secret must match the app's publishable key:
+
+    ISSUE_REPORT_PUBLISHABLE_KEY
+        =
+    src/support/reportBackend.json -> publishableKey
+
+
+4. SECURITY BOUNDARIES
+======================
+
+  Mobile app
+      |
+      | Has publishable key only
+      | Cannot directly read or insert reports
+      v
+  Edge Function
+      |
+      | Has server-side service-role access
+      | Validates and limits requests
+      v
+  Database RPC
+      |
+      | Only service_role can execute it
+      v
+  issue_reports table
+      |
+      | RLS enabled
+      | anon/authenticated have no table privileges
+      v
+  Private reports
+
+  Important:
+
+    - The publishable key is not a secret or anti-spam password.
+    - Anyone can extract a public key from a mobile app.
+    - The current RPC allows at most 100 new reports per rolling hour globally.
+    - Stronger anti-abuse controls may be needed for a large public release.
+
+
+5. SUPABASE DASHBOARD MAP
+=========================
+
+  Supabase project: LLMHUB
+
+  + Supabase Dashboard
+  |
+  +-- Table Editor
+  |     |
+  |     +-- issue_reports
+  |           |
+  |           +-- View submitted reports
+  |
+  +-- SQL Editor
+  |     |
+  |     +-- Run queries and inspect database setup
+  |
+  +-- Edge Functions
+  |     |
+  |     +-- submit-issue-report
+  |     |     |
+  |     |     +-- Deployment status
+  |     |     +-- Function logs
+  |     |
+  |     +-- Secrets
+  |           |
+  |           +-- ISSUE_REPORT_PUBLISHABLE_KEY
+  |
+  +-- Settings
+        |
+        +-- API
+              |
+              +-- Project URL
+              +-- Publishable API key
+              +-- Other project API settings
+
+
+6. FILES IN THIS REPOSITORY
+===========================
+
+  App configuration:
+
+    src/support/reportBackend.json
+
+  App submission code:
+
+    src/support/submitIssueReport.ts
+
+  Edge Function entry point:
+
+    supabase/functions/submit-issue-report/index.ts
+
+  Edge Function validation and request handling:
+
+    supabase/functions/submit-issue-report/handler.ts
+
+  Database schema, permissions, RPC, and rate limit:
+
+    supabase/migrations/20261010220000_issue_reports.sql
+
+  Edge Function configuration:
+
+    supabase/config.toml
+
+  Human-readable setup and testing instructions:
+
+    docs/ISSUE_REPORTS.md
+
+
+7. DEPLOYMENT ORDER
+===================
+
+  1. Create or select the Supabase project.
+  2. Link the local repository to the project.
+  3. Apply the database migration.
+  4. Add ISSUE_REPORT_PUBLISHABLE_KEY as an Edge Function secret.
+  5. Deploy submit-issue-report.
+  6. Build the app with the matching URL and publishable key.
+  7. Submit a real test report.
+  8. Confirm the row in Table Editor.
+
+  CLI commands:
+
+    supabase login
+    supabase link --project-ref aybpoizgxrvjlkowjzfh
+    supabase db push
+    supabase secrets set ISSUE_REPORT_PUBLISHABLE_KEY='sb_publishable_...'
+    supabase functions deploy submit-issue-report
+
+  The local Supabase CLI is not required for the app to run, but it is useful
+  for applying migrations, setting secrets, deploying functions, and checking
+  the remote project consistently.
+
+
+8. WHAT HAPPENS WHEN A USER SUBMITS
+===================================
+
+  User presses "Submit report"
+       |
+       v
+  App saves the draft locally
+       |
+       v
+  App creates or reuses a UUID receipt ID
+       |
+       v
+  App sends the report over HTTPS
+       |
+       +--> Invalid request? ----> Error shown; draft stays on phone
+       |
+       +--> Network failure? ----> Error shown; draft stays on phone
+       |
+       +--> Duplicate retry? ----> Existing matching ID returned
+       |
+       +--> Rate limit? ---------> 429 response; draft stays on phone
+       |
+       v
+  Function calls protected database RPC
+       |
+       v
+  Database inserts one private row
+       |
+       v
+  Matching ID returned to app
+       |
+       v
+  App shows success and clears pending submission state
+
+
+9. QUICK HEALTH CHECK
+=====================
+
+  In the Supabase Dashboard, confirm:
+
+    [ ] The issue_reports table exists.
+    [ ] Row Level Security is enabled.
+    [ ] No public read or insert policy exists.
+    [ ] submit-issue-report is deployed.
+    [ ] ISSUE_REPORT_PUBLISHABLE_KEY is configured.
+    [ ] Function logs show no configuration errors.
+    [ ] A real app submission creates one row.
+    [ ] Retrying the same report does not create a duplicate.
+
+  If the app reports success and one row appears in issue_reports, the full
+  app -> Edge Function -> RPC -> PostgreSQL flow is working.

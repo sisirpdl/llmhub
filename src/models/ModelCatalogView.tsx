@@ -127,6 +127,17 @@ export function ModelCard({
           ]}
         />
       </View>
+      {isImported(model) ? (
+        <View
+          accessibilityLabel="Unreviewed and unsupported model"
+          style={[styles.unreviewedTag, { backgroundColor: colors.elevated }]}
+        >
+          <Icon name="shield" size={14} color={colors.muted} />
+          <Text style={[styles.unreviewedText, { color: colors.muted }]}>
+            Unreviewed · Unsupported
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.actions}>
         <View style={styles.mainAction}>
           {working ? (
@@ -256,6 +267,12 @@ export function ModelCard({
           <Text style={[styles.detailText, { color: colors.muted }]}>
             {model.testedDeviceProfile}
           </Text>
+          {isImported(model) ? (
+            <Text style={[styles.detailText, { color: colors.muted }]}>
+              This user-added model has not been safety-reviewed or supported by
+              LLMHub.
+            </Text>
+          ) : null}
           {model.sourceUrl ? (
             <Pressable
               accessibilityRole="link"
@@ -470,6 +487,17 @@ export function ModelPicker({
   );
 }
 const styles = StyleSheet.create({
+  unreviewedTag: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 8,
+  },
+  unreviewedText: { fontSize: 12, fontWeight: '500' },
   container: { flex: 1 },
   catalog: { paddingHorizontal: 10, paddingBottom: 112 },
   section: {

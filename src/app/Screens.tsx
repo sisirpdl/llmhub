@@ -634,6 +634,18 @@ export function Onboarding({
         phone. Connecting to a LAN host sends your prompts and selected document
         context to that host.
       </Text>
+      <View
+        accessibilityLabel="AI safety notice"
+        style={[styles.safetyNotice, { backgroundColor: colors.elevated }]}
+      >
+        <Icon name="shield" color={colors.accent} size={20} />
+        <Text
+          style={[styles.caption, styles.safetyText, { color: colors.muted }]}
+        >
+          AI responses can be wrong. Do not use LLMHub for emergencies or as
+          medical, legal, or financial advice. Verify important information.
+        </Text>
+      </View>
       <View style={styles.onboardingRows}>
         {[
           [
@@ -669,7 +681,7 @@ export function Onboarding({
         ))}
       </View>
       <Button
-        label="Get started"
+        label="I understand · Get started"
         icon="arrow"
         colors={colors}
         onPress={onComplete}
@@ -752,5 +764,12 @@ const styles = StyleSheet.create({
   },
   onboardingText: { fontSize: 16, lineHeight: 25, marginTop: 16 },
   onboardingRows: { gap: 20, marginVertical: 32 },
+  safetyNotice: {
+    flexDirection: 'row',
+    gap: 12,
+    borderRadius: 14,
+    padding: 14,
+  },
+  safetyText: { flex: 1, marginTop: 0 },
   onboardingRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
 });
