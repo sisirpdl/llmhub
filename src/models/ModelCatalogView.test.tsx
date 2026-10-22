@@ -120,22 +120,63 @@ test('an installed text model hides suggestions and does not promote missing vis
   expect(text()).toContain(textModel.displayName);
   expect(text()).not.toContain(visionModel.displayName);
 });
-test('labels user-added models as unreviewed and unsupported', async () => {
-  const imported = {
-    ...textModel,
-    id: 'import-example',
-    origin: 'huggingface' as const,
-    originalFileName: 'example.gguf',
-  };
-  controller.catalog = [imported];
-  controller.states[imported.id] = 'ready';
+test.each([
+  ['huggingface', 'Hugging Face'],
+  ['local', 'Local file'],
+  ['remote', 'Remote URL'],
+  ['nearby', 'Nearby transfer'],
+] as const)(
+  'shows useful metadata for %s models without review/support labels',
+  async (origin, source) => {
+    const imported = {
+      ...textModel,
+      id: 'import-example',
+      origin,
+      originalFileName: 'example-Q5_K_M.gguf',
+      repositoryId: origin === 'huggingface' ? 'example/model-GGUF' : undefined,
+    };
+    controller.catalog = [imported];
+    controller.states[imported.id] = 'ready';
+    await catalog();
+    expect(text()).toContain('Q5_K_M');
+    expect(text()).toContain(source);
+    await Renderer.act(async () => {
+      renderer.root
+        .findByProps({
+          accessibilityLabel: `Show details for ${imported.displayName}`,
+        })
+        .props.onPress();
+    });
+    expect(text()).toContain('SHA-256 fingerprint');
+    expect(text()).toContain(imported.sha256);
+    if (imported.repositoryId) expect(text()).toContain(imported.repositoryId);
+    expect(text()).not.toMatch(
+      /unreviewed|unsupported|safety-reviewed|checksum verified/i,
+    );
+  },
+);
+test('unknown quantization and missing hash do not produce invented metadata', async () => {
+  controller.catalog = [
+    {
+      ...textModel,
+      id: 'unknown',
+      origin: 'local',
+      originalFileName: 'example.gguf',
+      sha256: '',
+    } as typeof textModel,
+  ];
+  controller.states.unknown = 'ready';
   await catalog();
-  expect(text()).toContain('Unreviewed · Unsupported');
-  expect(
-    renderer.root.findByProps({
-      accessibilityLabel: 'Unreviewed and unsupported model',
-    }),
-  ).toBeTruthy();
+  expect(text()).toContain('GGUF');
+  expect(text()).not.toContain('Q4_K_M');
+  await Renderer.act(async () => {
+    renderer.root
+      .findByProps({
+        accessibilityLabel: `Show details for ${textModel.displayName}`,
+      })
+      .props.onPress();
+  });
+  expect(text()).not.toContain('SHA-256 fingerprint');
 });
 test('low storage disables the recommendation but browsing remains available', async () => {
   controller.freeSpace = 0;

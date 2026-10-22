@@ -33,6 +33,20 @@ const labels: Record<ModelState, string> = {
   failed: 'Download failed',
   'load-failed': 'Load failed',
 };
+const modelQuantization = (model: ModelManifest) =>
+  quantization(isImported(model) ? model.originalFileName : model.fileName);
+const modelOrigin = (model: ModelManifest): string => {
+  if (isImported(model))
+    return {
+      huggingface: 'Hugging Face',
+      remote: 'Remote URL',
+      local: 'Local file',
+      nearby: 'Nearby transfer',
+    }[model.origin];
+  return /^https:\/\/huggingface\.co\//i.test(model.sourceUrl)
+    ? 'Hugging Face'
+    : 'Built-in';
+};
 const downloaded = (state: ModelState) =>
   ['ready', 'active', 'loading', 'load-failed'].includes(state);
 export function ModelCard({
@@ -127,17 +141,13 @@ export function ModelCard({
           ]}
         />
       </View>
-      {isImported(model) ? (
-        <View
-          accessibilityLabel="Unreviewed and unsupported model"
-          style={[styles.unreviewedTag, { backgroundColor: colors.elevated }]}
-        >
-          <Icon name="shield" size={14} color={colors.muted} />
-          <Text style={[styles.unreviewedText, { color: colors.muted }]}>
-            Unreviewed · Unsupported
-          </Text>
-        </View>
-      ) : null}
+      <Text
+        accessibilityLabel="Model format and source"
+        style={[styles.modelMetadata, { color: colors.muted }]}
+      >
+        {isVision(model) ? 'Vision' : 'Text'} · {modelQuantization(model)} ·{' '}
+        {modelOrigin(model)}
+      </Text>
       <View style={styles.actions}>
         <View style={styles.mainAction}>
           {working ? (
@@ -243,10 +253,7 @@ export function ModelCard({
       {expanded ? (
         <View style={[styles.details, { borderColor: colors.border }]}>
           <Text style={[styles.detailText, { color: colors.muted }]}>
-            {labels[state]} · {isVision(model) ? 'Vision' : 'Text'} ·{' '}
-            {isImported(model)
-              ? quantization(model.originalFileName)
-              : 'Q4_K_M'}
+            {labels[state]}
           </Text>
           <View style={styles.detailRow}>
             <Text style={{ color: colors.muted }}>Context</Text>
@@ -267,11 +274,31 @@ export function ModelCard({
           <Text style={[styles.detailText, { color: colors.muted }]}>
             {model.testedDeviceProfile}
           </Text>
-          {isImported(model) ? (
-            <Text style={[styles.detailText, { color: colors.muted }]}>
-              This user-added model has not been safety-reviewed or supported by
-              LLMHub.
-            </Text>
+          {isImported(model) && model.repositoryId ? (
+            <View style={styles.fingerprint}>
+              <Text style={[styles.detailText, { color: colors.muted }]}>
+                Repository
+              </Text>
+              <Text
+                selectable
+                style={[styles.detailText, { color: colors.text }]}
+              >
+                {model.repositoryId}
+              </Text>
+            </View>
+          ) : null}
+          {/^[a-f0-9]{64}$/i.test(model.sha256) ? (
+            <View style={styles.fingerprint}>
+              <Text style={[styles.detailText, { color: colors.muted }]}>
+                SHA-256 fingerprint
+              </Text>
+              <Text
+                selectable
+                style={[styles.detailText, { color: colors.text }]}
+              >
+                {model.sha256}
+              </Text>
+            </View>
           ) : null}
           {model.sourceUrl ? (
             <Pressable
@@ -284,9 +311,7 @@ export function ModelCard({
               }
               style={styles.source}
             >
-              <Text style={{ color: colors.accent }}>
-                Source & compatibility
-              </Text>
+              <Text style={{ color: colors.accent }}>View source</Text>
               <Icon name="external" color={colors.accent} size={16} />
             </Pressable>
           ) : null}
@@ -459,10 +484,7 @@ export function ModelPicker({
               </Text>
               <Text style={[styles.detailText, { color: colors.muted }]}>
                 {labels[controller.states[model.id]]} ·{' '}
-                {isImported(model)
-                  ? quantization(model.originalFileName)
-                  : 'Q4_K_M'}{' '}
-                ·{' '}
+                {modelQuantization(model)} ·{' '}
                 {model.byteSize ? formatBytes(model.byteSize) : 'Unknown size'}
               </Text>
             </View>
@@ -489,17 +511,8 @@ export function ModelPicker({
   );
 }
 const styles = StyleSheet.create({
-  unreviewedTag: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    marginTop: 8,
-  },
-  unreviewedText: { fontSize: 12, fontWeight: '500' },
+  modelMetadata: { fontSize: 12, lineHeight: 18, marginTop: 8 },
+  fingerprint: { gap: 4, marginTop: 8 },
   container: { flex: 1 },
   receiveAction: { marginBottom: 12 },
   catalog: { paddingHorizontal: 10, paddingBottom: 112 },
