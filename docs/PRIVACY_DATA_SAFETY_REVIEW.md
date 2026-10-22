@@ -50,7 +50,7 @@ The database migration restricts anon/authenticated access, bounds fields and ra
 3. **Public disclosures:** publish the synchronized HTML at a public HTTPS URL, verify unauthenticated access and use it in Play Console. Supply a monitored developer support/privacy contact that works outside the app. Hosting and console state were not accessible here.
 4. **iOS:** `ios/LlmHub/PrivacyInfo.xcprivacy` currently has an empty collected-data array despite optional support reporting. Assess Apple's optional-disclosure rules against the actual submission UI, update the manifest/App Store privacy answers as applicable, and inspect the merged Xcode privacy report. Do not infer Apple answers from Google's taxonomy.
 5. **Release verification:** inventory transitive native dependencies, test redirects for token leakage, capture all network destinations with local chat, HF search/download, custom URL, reports, LAN and nearby, and inspect actual provider log practices. Reconcile every supported feature with the declaration worksheet; no blanket no-sharing answer is justified yet.
-6. **Model verification:** run curated/imported models on the release device, including vision and multilingual/paraphrase prompts. Heuristic tests verify the publication boundary for matching text; they cannot prove all unsafe semantics are detected.
+6. **Model verification:** run curated/imported models on the release device, including vision and multilingual/paraphrase prompts. Minimal input checks examine only the latest user message. Output filtering has been removed and tokens stream directly; tests verify streaming and lifecycle behavior, not output moderation. Model safeguards are unverified across the release model set.
 
 ## Official references
 

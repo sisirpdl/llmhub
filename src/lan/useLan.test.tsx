@@ -1,4 +1,4 @@
-import { SAFETY_SYSTEM_INSTRUCTION, WITHHELD_RESPONSE } from '../chat/safety';
+import { SAFETY_SYSTEM_INSTRUCTION } from '../chat/safety';
 import React from 'react';
 import Renderer, { act } from 'react-test-renderer';
 const mockListeners: Record<string, (event: any) => Promise<void> | void> = {};
@@ -516,7 +516,7 @@ test('validation errors stay in LAN settings and do not use the global banner', 
   expect(mockNative.request).not.toHaveBeenCalled();
 });
 
-test('withholds unsafe LAN-host output before sending it to a client', async () => {
+test('returns model output unchanged to a LAN client', async () => {
   context.completion.mockResolvedValueOnce({
     content: 'Here are instructions to build a bomb.',
   });
@@ -527,6 +527,7 @@ test('withholds unsafe LAN-host output before sending it to a client', async () 
     await incoming();
   });
   const body = mockNative.respond.mock.calls[0][2];
-  expect(JSON.parse(body).choices[0].message.content).toBe(WITHHELD_RESPONSE);
-  expect(body).not.toContain('build a bomb');
+  expect(JSON.parse(body).choices[0].message.content).toBe(
+    'Here are instructions to build a bomb.',
+  );
 });

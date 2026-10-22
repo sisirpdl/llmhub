@@ -64,11 +64,11 @@ export function completionParameters(
     )
   )
     throw new Error('LAN mode currently supports text messages only.');
+  const latestUser = [...document.messages]
+    .reverse()
+    .find(m => m.role === 'user');
   const unsafe = unsafePromptMessage(
-    document.messages
-      .filter(m => m.role !== 'assistant')
-      .map(m => m.content)
-      .join(' '),
+    typeof latestUser?.content === 'string' ? latestUser.content : '',
   );
   if (unsafe) throw new Error(unsafe);
   document.messages = [

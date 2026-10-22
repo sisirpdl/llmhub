@@ -1,4 +1,3 @@
-import { safeResponse } from '../chat/safety';
 import { useEffect, useRef, useState } from 'react';
 import {
   AppState,
@@ -252,7 +251,7 @@ export function useLan(options: {
                 index: 0,
                 message: {
                   role: 'assistant',
-                  content: safeResponse(result.content || result.text || ''),
+                  content: result.content || result.text || '',
                 },
                 finish_reason:
                   timedOut || result.stopped_limit ? 'length' : 'stop',

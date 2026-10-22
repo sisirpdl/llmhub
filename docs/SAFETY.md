@@ -11,7 +11,7 @@ or confirmation of Play Store approval or a live backend deployment.
 
 | Area | Implemented | Limit |
 | --- | --- | --- |
-| Local content checks | Six text safety categories checked before inference and before publication, including LAN hosting. | Heuristics miss some unsafe language and do not moderate images. |
+| Local input checks | Small set of explicit harmful requests in the newest user message, including LAN hosting. | No output filtering; model behavior determines generated content. |
 | AI response reporting | Selected assistant-response text opens an editable report form. | Requires configured and deployed report backend; does not block harmful output. |
 | Transparency | AI accuracy notice and in-app privacy policy in About app. | Notices do not enforce model behavior. |
 | Local processing | Local inference and document retrieval; no account required. | LAN inference and explicit report submission send data off the phone. |
@@ -70,9 +70,9 @@ Implementation: [settings](../src/settings/modelSettings.ts),
 
 ### Content-safety protections not implemented
 
-Local text heuristics now handle child sexual exploitation, non-consensual sexual content, self-harm, violence, illegal wrongdoing and law-enforcement evasion before chat/LAN inference and at the output boundary. Chat checks non-assistant text context and retrieved passages, and appends the safety instruction to the model prompt. LAN requests receive the same instruction.
+Minimal local input heuristics cover selected explicit requests involving child sexual exploitation, non-consensual sexual content, self-harm methods, violence, illegal wrongdoing and concealment of a crime. Only the newest user message is checked in chat and LAN hosting. Prior messages, custom system prompts and retrieved document passages are not scanned by this filter. Normalization handles capitalization, spacing, punctuation and zero-width characters. Educational topic mentions and support-seeking statements are left to the model. The safety system instruction is still added to local and LAN inference prompts.
 
-Generated tokens remain in memory until checked. Every UI publication, including error, Stop and background paths, filters the buffer; native callbacks are scoped to their generation. Unsafe reasoning/tool-call metadata causes the whole reply to be withheld, without retaining that metadata. LAN output is filtered before the HTTP response.
+There is **no app-level output content filtering**. Tokens stream to the chat UI in animation-frame batches; completed text, reasoning and tool-call metadata are preserved without content screening. LAN model output is returned unchanged. Stop, background/error handling and per-generation late-callback guards remain, but they do not moderate content. Model refusals and safety instructions are the primary output safeguards; their effectiveness has not been established across supported/imported models.
 
 There is still no semantic or multilingual classifier, image moderation, age verification, jailbreak-resistant safety layer or completed safety evaluation across supported/imported models. Different models can have different
 refusal behavior. Reporting, local execution, checksums and disclaimers do not
@@ -246,4 +246,4 @@ does not deploy a backend, introduce moderation or change runtime behavior.
 
 ## October 22 regression and privacy review
 
-See [privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the source inventory, declaration worksheet and unresolved release blockers. Category and paraphrase fixtures are in `src/chat/safety.test.ts`; render-boundary regressions are in `src/chat/ChatView.test.tsx`. Tests use non-operational mocked output and do not establish that every unsafe model answer is detected.
+See [privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the source inventory, declaration worksheet and unresolved release blockers. Category and paraphrase fixtures are in `src/chat/safety.test.ts`; streaming/lifecycle regressions are in `src/chat/ChatView.test.tsx`. Tests use non-operational mocked output and do not establish that models will reliably refuse unsafe requests. No output detection is implemented.

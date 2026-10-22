@@ -13,13 +13,7 @@ import {
   type ModelSettings,
 } from '../settings/modelSettings';
 import { prepareMessages } from './promptBuilder';
-import {
-  SAFETY_SYSTEM_INSTRUCTION,
-  safeResponse,
-  safetyCategory,
-  WITHHELD_RESPONSE,
-  unsafePromptMessage,
-} from './safety';
+import { SAFETY_SYSTEM_INSTRUCTION, unsafePromptMessage } from './safety';
 import {
   formatRetrievedContext,
   type RetrievedChunk,
@@ -227,7 +221,7 @@ export function useChatController({
     frame.current = null;
     const target = assistant.current;
     if (!target) return;
-    const content = safeResponse(buffer.current);
+    const content = buffer.current;
     setConversations(current =>
       current.map(c =>
         c.id === target.conversationId
@@ -244,8 +238,7 @@ export function useChatController({
   function queueToken(data: TokenData) {
     if (!assistant.current) return;
     buffer.current += data.token || data.content || '';
-    // Keep generated text out of the UI until the completed response has
-    // passed the local output check.
+    if (frame.current === null) frame.current = requestAnimationFrame(flush);
   }
   async function sendMessage() {
     const content = draft.trim();
@@ -257,14 +250,7 @@ export function useChatController({
       !conversation
     )
       return;
-    const unsafe = unsafePromptMessage(
-      [
-        ...messages.filter(m => m.role !== 'assistant'),
-        { role: 'user' as const, content },
-      ]
-        .map(messageText)
-        .join(' '),
-    );
+    const unsafe = unsafePromptMessage(content);
     if (unsafe) {
       setError(unsafe);
       return;
@@ -304,8 +290,6 @@ export function useChatController({
         return;
       }
       const retrievedContext = formatRetrievedContext(sources);
-      const unsafeContext = unsafePromptMessage(retrievedContext);
-      if (unsafeContext) throw new Error(unsafeContext);
       let promptTurns: ChatMessage[] = [...turns];
       const safetyIndex = promptTurns.findIndex(m => m.role === 'system');
       promptTurns =
@@ -439,22 +423,12 @@ export function useChatController({
         receiveToken,
       );
       if (interrupted.current) return;
-      buffer.current = safeResponse(
+      buffer.current =
         typeof completion.content === 'string'
           ? completion.content
-          : buffer.current || completion.text || '',
-      );
-      const metadataUnsafe = safetyCategory(
-        [
-          completion.reasoning_content || '',
-          JSON.stringify(completion.tool_calls || []),
-        ].join(' '),
-      );
-      if (metadataUnsafe) buffer.current = WITHHELD_RESPONSE;
+          : buffer.current || completion.text || '';
       const target = assistant.current;
       if (
-        !metadataUnsafe &&
-        buffer.current !== WITHHELD_RESPONSE &&
         target &&
         (completion.tool_calls?.length || completion.reasoning_content)
       ) {
@@ -507,7 +481,6 @@ export function useChatController({
       // Keep the partial response if stopping fails.
     }
     if (frame.current) cancelAnimationFrame(frame.current);
-    buffer.current = safeResponse(buffer.current);
     flush();
     setError('Generation stopped. The partial response was kept.');
   }
