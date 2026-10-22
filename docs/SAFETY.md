@@ -1,7 +1,6 @@
 # Safety, privacy and security implementation
 
-Last source review: October 21, 2026. Reviewed `main` at
-[`209f5d3`](https://github.com/sisirpdl/llmhub/commit/209f5d311da0540397f8325e1a4aca23e16c72a6).
+Last source review: October 22, 2026, including these changes against `main` at `dbaaa13`.
 
 This document records protections present in the code and their limits. It
 separates AI content safety from data privacy, transfer security and input
@@ -12,6 +11,7 @@ or confirmation of Play Store approval or a live backend deployment.
 
 | Area | Implemented | Limit |
 | --- | --- | --- |
+| Local content checks | Six text safety categories checked before inference and before publication, including LAN hosting. | Heuristics miss some unsafe language and do not moderate images. |
 | AI response reporting | Selected assistant-response text opens an editable report form. | Requires configured and deployed report backend; does not block harmful output. |
 | Transparency | AI accuracy notice and in-app privacy policy in About app. | Notices do not enforce model behavior. |
 | Local processing | Local inference and document retrieval; no account required. | LAN inference and explicit report submission send data off the phone. |
@@ -70,9 +70,11 @@ Implementation: [settings](../src/settings/modelSettings.ts),
 
 ### Content-safety protections not implemented
 
-There is no app-wide input/output safety classifier, prohibited-content filter,
-age-verification system, jailbreak-resistant safety layer or completed safety
-evaluation across supported/imported models. Different models can have different
+Local text heuristics now handle child sexual exploitation, non-consensual sexual content, self-harm, violence, illegal wrongdoing and law-enforcement evasion before chat/LAN inference and at the output boundary. Chat checks non-assistant text context and retrieved passages, and appends the safety instruction to the model prompt. LAN requests receive the same instruction.
+
+Generated tokens remain in memory until checked. Every UI publication, including error, Stop and background paths, filters the buffer; native callbacks are scoped to their generation. Unsafe reasoning/tool-call metadata causes the whole reply to be withheld, without retaining that metadata. LAN output is filtered before the HTTP response.
+
+There is still no semantic or multilingual classifier, image moderation, age verification, jailbreak-resistant safety layer or completed safety evaluation across supported/imported models. Different models can have different
 refusal behavior. Reporting, local execution, checksums and disclaimers do not
 establish that a model is safe or compliant with distribution policies.
 
@@ -241,3 +243,7 @@ Before claiming production readiness:
 See [release checklist](play-store-release.md) and
 [device-test notes](DEVICE_TEST_NOTES.md) for release validation. This documentation
 does not deploy a backend, introduce moderation or change runtime behavior.
+
+## October 22 regression and privacy review
+
+See [privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the source inventory, declaration worksheet and unresolved release blockers. Category and paraphrase fixtures are in `src/chat/safety.test.ts`; render-boundary regressions are in `src/chat/ChatView.test.tsx`. Tests use non-operational mocked output and do not establish that every unsafe model answer is detected.

@@ -1,3 +1,4 @@
+import { SAFETY_SYSTEM_INSTRUCTION, unsafePromptMessage } from '../chat/safety';
 import type { LlamaContext } from 'llama.rn';
 import { validateDocument, type ChatDocument } from '../chat/chatDocument';
 import { prepareMessages } from '../chat/promptBuilder';
@@ -63,6 +64,17 @@ export function completionParameters(
     )
   )
     throw new Error('LAN mode currently supports text messages only.');
+  const unsafe = unsafePromptMessage(
+    document.messages
+      .filter(m => m.role !== 'assistant')
+      .map(m => m.content)
+      .join(' '),
+  );
+  if (unsafe) throw new Error(unsafe);
+  document.messages = [
+    { role: 'system', content: SAFETY_SYSTEM_INSTRUCTION },
+    ...document.messages,
+  ];
   function number(
     name: string,
     fallback: number,

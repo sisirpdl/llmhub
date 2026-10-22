@@ -220,8 +220,9 @@ export function IssueReportSheet({
           />
         </View>
         <Text style={{ color: colors.muted }}>
-          Chats, documents, model files, tokens and logs are never added
-          automatically. Avoid putting private information in your description.
+          Report response prefills the selected response for your review. Other
+          chat messages, documents, model files, tokens and logs are not added
+          automatically. Remove private information before submitting.
         </Text>
         {error ? (
           <Text

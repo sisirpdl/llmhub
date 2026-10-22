@@ -1,6 +1,6 @@
-## LLMHub privacy policy · October 13, 2026
+## LLMHub privacy policy · October 22, 2026
 
-LLMHub runs language models locally and does not require an account. This policy describes local storage and the optional network features. For privacy questions or deletion requests concerning submitted reports, use Report an issue in the main sidebar and include your report ID if available.
+LLMHub runs language models locally and does not require an account. This policy describes local storage and the optional network features. For privacy questions or deletion requests concerning submitted reports, use Report an issue in the main sidebar. Use the title Delete my report and include the original report ID if available; do not resend private content. This requires network access and review by support.
 
 ## Chats, documents and images
 
@@ -8,15 +8,15 @@ Chats, downloaded models, imported documents, extracted text and chat images are
 
 ## Downloads and Hugging Face
 
-Browsing and downloading models contacts Hugging Face or the download provider you select. Providers receive network information such as your IP address and requested files and apply their own privacy policies. An optional Hugging Face token is sent to Hugging Face to authorize requests. LLMHub keeps this token in memory rather than saving it to app storage. Do not enter a token you cannot safely use for downloads.
+Browsing and downloading models contacts Hugging Face or the download provider you select. Providers receive network information such as your IP address, search queries, requested repositories and files, and apply their own privacy policies. Downloads may redirect to provider storage or CDN hosts. An optional Hugging Face token is sent to Hugging Face to authorize requests. LLMHub keeps this token in memory rather than saving it to app storage. Do not enter a token you cannot safely use for downloads.
 
 ## LAN connections and nearby sharing
 
-Connecting to another device sends your prompts, conversation context and selected document passages to the chosen LAN host. That host processes them; its owner controls the device and may retain data. LAN HTTP traffic is not encrypted, so use only a trusted network and host. Nearby model sharing transfers model files and transfer metadata directly between participating devices. Model chunks are encrypted and authenticated before transfer. Chat history and your Hugging Face token are not included in model transfers.
+Connecting to another device sends your prompts, conversation context and selected document passages to the chosen LAN host. In this release LAN requests support text only; attached images are not sent to the LAN host. That host processes them; its owner controls the device and may retain data. LAN HTTP traffic is not encrypted, so use only a trusted network and host. Nearby model sharing transfers model files and transfer metadata directly between participating devices. Model chunks are encrypted and authenticated before transfer. Chat history and your Hugging Face token are not included in model transfers.
 
 ## Reports sent to support
 
-Submitting a report sends the title, description and reproduction steps to LLMHub support through an HTTPS Supabase endpoint. If you opt in, it also sends app version, platform and OS version. Report response fills the form with the selected response text for your review; it does not automatically include the full conversation, images or documents. Remove personal information before submitting. Drafts remain on your device until you submit or delete app storage. Submitted reports are stored in a private support database until support deletes them; request deletion through Report an issue. Supabase may process request metadata under its own privacy policy.
+Submitting a report sends the title, description and reproduction steps to LLMHub support through an HTTPS Supabase endpoint. If you opt in, it also sends app version, platform and OS version. Report response fills the form with the selected response text for your review; it does not automatically include the full conversation, images or documents. Remove personal information before submitting. Drafts remain on your device until you submit or delete app storage. Submitted reports are stored in a private support database until support deletes them. There is currently no automatic expiry. Request deletion through Report an issue; deleting the app or its local data does not delete submitted reports. Provider request logs and backups have separate retention controlled by the provider. Supabase may process request metadata under its own privacy policy.
 
 ## Data use and security
 

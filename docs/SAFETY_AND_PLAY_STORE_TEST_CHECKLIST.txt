@@ -17,7 +17,8 @@ The current safeguards are local and conservative:
 
   1. A small set of obvious harmful prompts is blocked before inference.
   2. A safety instruction is added to prompts sent to the model.
-  3. Streamed and completed output is checked for obvious restricted patterns.
+  3. Streamed tokens remain hidden; every publication (including Stop/error/
+     background completion) checks the buffer for restricted patterns.
   4. Matching output is replaced with a withheld-content message.
   5. The user can report an unsafe response.
 
@@ -44,7 +45,8 @@ PART 2 - HOW TO RUN THE TESTS
 
 Automated safety tests:
 
-  npm test -- --runInBand src/chat/safety.test.ts
+  npm test -- --runInBand src/chat/safety.test.ts src/chat/ChatView.test.tsx
+  npm test -- --runInBand src/lan/protocol.test.ts src/lan/useLan.test.tsx
 
 Full TypeScript and lint checks:
 
@@ -220,7 +222,8 @@ produce dangerous instructions just to test the output filter.
 
   [ ] Feed a mock assistant output containing a restricted pattern.
   [ ] Confirm the user sees the withheld-content message.
-  [ ] Confirm partial streamed text is not left visible after withholding.
+  [ ] Confirm no unchecked streamed text is ever visible, including on
+      completion, rejection, Stop, backgrounding and late native callbacks.
   [ ] Confirm safe output remains unchanged.
   [ ] Confirm a long response does not bypass the final safety check.
 
@@ -392,3 +395,10 @@ SOURCE DOCUMENTS
   src/chat/safety.test.ts
   src/support/submitIssueReport.ts
   supabase/functions/submit-issue-report/handler.ts
+
+OCTOBER 22 SOURCE REVIEW
+------------------------
+
+See docs/PRIVACY_DATA_SAFETY_REVIEW.md for the completed source review,
+Data Safety worksheet and open release blockers. Manual and live-service
+checkboxes above remain unchecked until observed on the release build.

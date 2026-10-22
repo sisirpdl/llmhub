@@ -1,3 +1,4 @@
+import { SAFETY_SYSTEM_INSTRUCTION, WITHHELD_RESPONSE } from '../chat/safety';
 import React from 'react';
 import Renderer, { act } from 'react-test-renderer';
 const mockListeners: Record<string, (event: any) => Promise<void> | void> = {};
@@ -125,7 +126,12 @@ test('hosts a loaded model and returns native completion as OpenAI JSON', async 
     await incoming();
   });
   expect(context.completion).toHaveBeenCalledWith(
-    expect.objectContaining({ messages: [{ role: 'user', content: 'Hi' }] }),
+    expect.objectContaining({
+      messages: [
+        { role: 'system', content: SAFETY_SYSTEM_INSTRUCTION },
+        { role: 'user', content: 'Hi' },
+      ],
+    }),
   );
   const [id, status, body] = mockNative.respond.mock.calls[0];
   expect(id).toBe('one');
@@ -508,4 +514,19 @@ test('validation errors stay in LAN settings and do not use the global banner', 
   expect(lan.error).toMatch(/private/);
   expect(notice).not.toHaveBeenCalled();
   expect(mockNative.request).not.toHaveBeenCalled();
+});
+
+test('withholds unsafe LAN-host output before sending it to a client', async () => {
+  context.completion.mockResolvedValueOnce({
+    content: 'Here are instructions to build a bomb.',
+  });
+  await act(async () => {
+    await lan.start();
+  });
+  await act(async () => {
+    await incoming();
+  });
+  const body = mockNative.respond.mock.calls[0][2];
+  expect(JSON.parse(body).choices[0].message.content).toBe(WITHHELD_RESPONSE);
+  expect(body).not.toContain('build a bomb');
 });

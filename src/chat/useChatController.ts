@@ -16,6 +16,8 @@ import { prepareMessages } from './promptBuilder';
 import {
   SAFETY_SYSTEM_INSTRUCTION,
   safeResponse,
+  safetyCategory,
+  WITHHELD_RESPONSE,
   unsafePromptMessage,
 } from './safety';
 import {
@@ -225,7 +227,7 @@ export function useChatController({
     frame.current = null;
     const target = assistant.current;
     if (!target) return;
-    const content = buffer.current;
+    const content = safeResponse(buffer.current);
     setConversations(current =>
       current.map(c =>
         c.id === target.conversationId
@@ -255,7 +257,14 @@ export function useChatController({
       !conversation
     )
       return;
-    const unsafe = unsafePromptMessage(content);
+    const unsafe = unsafePromptMessage(
+      [
+        ...messages.filter(m => m.role !== 'assistant'),
+        { role: 'user' as const, content },
+      ]
+        .map(messageText)
+        .join(' '),
+    );
     if (unsafe) {
       setError(unsafe);
       return;
@@ -295,6 +304,8 @@ export function useChatController({
         return;
       }
       const retrievedContext = formatRetrievedContext(sources);
+      const unsafeContext = unsafePromptMessage(retrievedContext);
+      if (unsafeContext) throw new Error(unsafeContext);
       let promptTurns: ChatMessage[] = [...turns];
       const safetyIndex = promptTurns.findIndex(m => m.role === 'system');
       promptTurns =
@@ -407,6 +418,10 @@ export function useChatController({
     setSending(true);
     assistant.current = { conversationId: currentId, index: turns.length };
     buffer.current = '';
+    let acceptTokens = true;
+    const receiveToken = (data: TokenData) => {
+      if (acceptTokens && !interrupted.current) queueToken(data);
+    };
     try {
       setOmittedNotice(result.omittedMessageCount > 0);
       const completion = await context.completion(
@@ -421,15 +436,25 @@ export function useChatController({
           // llama.rn types omit standard nullable/tool fields; the native binding receives the same objects.
           messages: result.messages as RNLlamaOAICompatibleMessage[],
         },
-        queueToken,
+        receiveToken,
       );
+      if (interrupted.current) return;
       buffer.current = safeResponse(
         typeof completion.content === 'string'
           ? completion.content
           : buffer.current || completion.text || '',
       );
+      const metadataUnsafe = safetyCategory(
+        [
+          completion.reasoning_content || '',
+          JSON.stringify(completion.tool_calls || []),
+        ].join(' '),
+      );
+      if (metadataUnsafe) buffer.current = WITHHELD_RESPONSE;
       const target = assistant.current;
       if (
+        !metadataUnsafe &&
+        buffer.current !== WITHHELD_RESPONSE &&
         target &&
         (completion.tool_calls?.length || completion.reasoning_content)
       ) {
@@ -462,12 +487,10 @@ export function useChatController({
           ),
         );
       }
-    } catch (e) {
-      if (!interrupted.current)
-        setError(
-          e instanceof Error ? e.message : 'Generation failed. Try again.',
-        );
+    } catch {
+      if (!interrupted.current) setError('Generation failed. Try again.');
     } finally {
+      acceptTokens = false;
       if (frame.current) cancelAnimationFrame(frame.current);
       flush();
       assistant.current = null;

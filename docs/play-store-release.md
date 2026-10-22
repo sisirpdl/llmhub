@@ -53,3 +53,7 @@ Build from `android` with `./gradlew bundleRelease`. Output: `android/app/build/
 - Review the pre-launch report and compatibility warnings before requesting production review. Submission does not guarantee immediate publication.
 
 Official references: [User data](https://support.google.com/googleplay/android-developer/answer/10144311), [AI content](https://support.google.com/googleplay/android-developer/answer/13985936), [Signing](https://developer.android.com/studio/publish/app-signing), [16 KB pages](https://developer.android.com/guide/practices/page-sizes), [Testing eligibility](https://support.google.com/googleplay/android-developer/answer/14151465).
+
+## Privacy review evidence
+
+See [October 22 privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the data-flow inventory, declaration worksheet and release blockers. In particular, current LAN HTTP prevents an all-data-encrypted claim; report retention/deletion operations, public policy hosting and live provider behavior still require verification.
