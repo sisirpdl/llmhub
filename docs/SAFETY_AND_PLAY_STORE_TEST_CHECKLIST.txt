@@ -322,7 +322,7 @@ Install the release through Play internal testing and verify:
   [ ] PDF and document import.
   [ ] Image permissions and vision model behavior.
   [ ] Stop generation and background/foreground behavior.
-  [ ] LAN hosting and receiving behavior.
+  [ ] Host & Connect is absent; LAN start/connect operations are unavailable.
   [ ] Nearby model transfer.
   [ ] Hugging Face token handling and logout/removal behavior.
   [ ] Report response form opens from an assistant response.
@@ -402,3 +402,10 @@ OCTOBER 22 SOURCE REVIEW
 See docs/PRIVACY_DATA_SAFETY_REVIEW.md for the completed source review,
 Data Safety worksheet and open release blockers. Manual and live-service
 checkboxes above remain unchecked until observed on the release build.
+
+FIRST-RELEASE SCOPE
+-------------------
+
+LAN hosting and remote phone inference are disabled. Any LAN inference model
+checks in this checklist apply only to a future release that enables the feature.
+Nearby model-file sharing remains separate and requires device verification.

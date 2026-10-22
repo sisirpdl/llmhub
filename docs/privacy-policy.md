@@ -10,9 +10,9 @@ Chats, downloaded models, imported documents, extracted text and chat images are
 
 Browsing and downloading models contacts Hugging Face or the download provider you select. Providers receive network information such as your IP address, search queries, requested repositories and files, and apply their own privacy policies. Downloads may redirect to provider storage or CDN hosts. An optional Hugging Face token is sent to Hugging Face to authorize requests. LLMHub keeps this token in memory rather than saving it to app storage. Do not enter a token you cannot safely use for downloads.
 
-## LAN connections and nearby sharing
+## Nearby model sharing
 
-Connecting to another device sends your prompts, conversation context and selected document passages to the chosen LAN host. In this release LAN requests support text only; attached images are not sent to the LAN host. That host processes them; its owner controls the device and may retain data. LAN HTTP traffic is not encrypted, so use only a trusted network and host. Nearby model sharing transfers model files and transfer metadata directly between participating devices. Model chunks are encrypted and authenticated before transfer. Chat history and your Hugging Face token are not included in model transfers.
+Chat inference runs on this device. Remote inference and LAN hosting are not available in this release. Nearby model sharing transfers model files and transfer metadata directly between participating devices. Control messages and model chunks are encrypted and authenticated before transfer. Chat history, document passages and your Hugging Face token are not included in model transfers.
 
 ## Reports sent to support
 
@@ -20,4 +20,4 @@ Submitting a report sends the title, description and reproduction steps to LLMHu
 
 ## Data use and security
 
-Reports are used to investigate bugs and unsafe AI output. LLMHub does not include advertising or analytics SDKs in this release and does not sell your reports or local chat data. Private app storage relies on your device security. HTTPS protects report submission in transit; database access is restricted to the support backend. LAN chat uses unencrypted HTTP on the local network and should be used only with a trusted host and network. The app does not automatically upload conversations for model training.
+Reports are used to investigate bugs and unsafe AI output. LLMHub does not include advertising or analytics SDKs in this release and does not sell your reports or local chat data. Private app storage relies on your device security. HTTPS protects report submission in transit; database access is restricted to the support backend. The app does not automatically upload conversations for model training.

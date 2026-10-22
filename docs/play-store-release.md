@@ -40,7 +40,7 @@ Build from `android` with `./gradlew bundleRelease`. Output: `android/app/build/
 - Include your local Supabase URL and publishable key in `src/support/reportBackend.json`. Never put a service-role key in the app. Test a real report and verify private database insertion and deletion requests.
 - Review AI safety: the app has local input/output safeguards, reporting and an accuracy notice, but these do not guarantee that every model blocks prohibited output. Evaluate the curated and imported models before production.
 - Verify actual native libraries in the signed AAB support 16 KB pages; test on a 16 KB device/emulator and review Play Console compatibility results. API target is 36; do not assume SDK/NDK versions prove native compatibility.
-- Test the release installed through Play internal testing: model download/load, airplane-mode chat, stop/background behavior, PDFs, image permissions, chat deletion, report response, LAN and nearby transfer.
+- Test the release installed through Play internal testing: model download/load, airplane-mode chat, stop/background behavior, PDFs, image permissions, chat deletion, report response, nearby transfer, and confirm LAN hosting/remote inference are unavailable.
 - Confirm launcher/store graphics are your final branding and curated model distribution complies with model licenses.
 
 ## Play Console
@@ -56,4 +56,4 @@ Official references: [User data](https://support.google.com/googleplay/android-d
 
 ## Privacy review evidence
 
-See [October 22 privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the data-flow inventory, declaration worksheet and release blockers. In particular, current LAN HTTP prevents an all-data-encrypted claim; report retention/deletion operations, public policy hosting and live provider behavior still require verification.
+See [October 22 privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the data-flow inventory, declaration worksheet and release blockers. LAN hosting/remote inference are disabled for the first release. Verify that scope in the signed build; report retention/deletion operations, public policy hosting, remaining transports and live provider behavior still require verification.

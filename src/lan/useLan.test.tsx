@@ -51,8 +51,10 @@ let lifecycle: (value: string) => void;
 const context = { completion: jest.fn(), stopCompletion: jest.fn() };
 const notice = jest.fn();
 let localContext: LlamaContext | null;
+let enabled = true;
 function Harness() {
   lan = useLan({
+    enabled,
     context: localContext,
     model: CATALOG[0],
     settings: defaultsFor(CATALOG[0]),
@@ -64,6 +66,7 @@ function Harness() {
 }
 beforeEach(async () => {
   jest.clearAllMocks();
+  enabled = true;
   localContext = context as unknown as LlamaContext;
   Object.defineProperty(AppState, 'currentState', {
     value: 'active',
@@ -530,4 +533,25 @@ test('returns model output unchanged to a LAN client', async () => {
   expect(JSON.parse(body).choices[0].message.content).toBe(
     'Here are instructions to build a bomb.',
   );
+});
+
+test('disabled inference registers no LAN handlers and cannot start or send requests', async () => {
+  enabled = false;
+  await act(async () => renderer.update(<Harness />));
+  jest.clearAllMocks();
+  expect(mockListeners.LanRequest).toBeUndefined();
+  await act(async () => {
+    expect(await lan.start()).toBe(false);
+    expect(await lan.connect('http://192.168.1.2:8080', 'a'.repeat(48))).toBe(
+      false,
+    );
+    expect(await lan.checkConnection()).toBe(false);
+    await lan.share();
+  });
+  expect(mockNative.start).not.toHaveBeenCalled();
+  expect(mockNative.request).not.toHaveBeenCalled();
+  expect(mockNative.respond).not.toHaveBeenCalled();
+  expect(context.completion).not.toHaveBeenCalled();
+  expect(lan.host).toBeNull();
+  expect(lan.remote).toBeNull();
 });

@@ -50,6 +50,7 @@ type Transport = {
 };
 const native: Transport | undefined = NativeModules.LanHttp;
 export function useLan(options: {
+  enabled?: boolean;
   context: LlamaContext | null;
   model: ModelManifest;
   settings: ModelSettings;
@@ -57,6 +58,7 @@ export function useLan(options: {
   generationActive: boolean;
   setNotice: (text: string) => void;
 }) {
+  const enabled = options.enabled !== false;
   const [host, setHost] = useState<Host | null>(null);
   const [remote, setRemote] = useState<Remote | null>(null);
   const [activity, setActivity] = useState<Activity>(null);
@@ -99,6 +101,8 @@ export function useLan(options: {
     body = '',
     owned?: Set<string>,
   ) {
+    if (snapshot.current.enabled === false)
+      throw new Error('LAN inference is not available in this release.');
     if (!native) throw new Error('Rebuild the app to enable LAN networking.');
     const id = `lan-${Date.now()}-${++counter.current}`;
     requests.current.add(id);
@@ -157,7 +161,7 @@ export function useLan(options: {
     }
   }
   useEffect(() => {
-    if (!native) return;
+    if (!native || !enabled) return;
     const emitter = new NativeEventEmitter(NativeModules.LanHttp);
     const incoming = emitter.addListener(
       'LanRequest',
@@ -305,17 +309,25 @@ export function useLan(options: {
       stop();
     };
     // Lifecycle owns native listeners; request handlers read current options through refs.
-  }, []);
+  }, [enabled]);
   useEffect(() => {
     if (hosting.current && options.context !== hosting.current.context) stop();
   }, [options.context]);
   function validSession(session: number) {
-    return session === operation.current && AppState.currentState === 'active';
+    return (
+      snapshot.current.enabled !== false &&
+      session === operation.current &&
+      AppState.currentState === 'active'
+    );
   }
   async function begin(
     kind: Activity,
     action: (session: number) => Promise<boolean>,
   ) {
+    if (snapshot.current.enabled === false) {
+      setError('LAN inference is not available in this release.');
+      return false;
+    }
     if (pendingRef.current || shutdown.current) return false;
     if (snapshot.current.generationActive || busy.current) {
       setError('Stop generation before changing LAN mode.');
@@ -481,6 +493,7 @@ export function useLan(options: {
   async function checkConnection() {
     const identity = connection.current;
     if (
+      snapshot.current.enabled === false ||
       !identity ||
       pendingRef.current ||
       shutdown.current ||
@@ -529,7 +542,7 @@ export function useLan(options: {
     connect,
     stop,
     share: async () => {
-      if (!host?.token) return;
+      if (snapshot.current.enabled === false || !host?.token) return;
       sharing.current = true;
       try {
         await Share.share({

@@ -261,17 +261,9 @@ test.each(['android', 'ios'] as const)(
     expect(
       renderer!.root.findAllByProps({ label: 'Model settings' }),
     ).toHaveLength(0);
-    await Renderer.act(async () =>
-      sectionTab('Host & Connect').props.onPress(),
-    );
-    expect(sectionTab('Host & Connect').props.accessibilityState.selected).toBe(
-      true,
-    );
     expect(
-      renderer!.root
-        .findAllByType('Text' as never)
-        .map(node => node.props.children),
-    ).not.toContain('Device details');
+      renderer!.root.findAllByProps({ accessibilityLabel: 'Host & Connect' }),
+    ).toHaveLength(0);
     await Renderer.act(async () => sectionTab('General').props.onPress());
     expect(
       renderer!.root.findByProps({ accessibilityLabel: 'Import chat' }),
@@ -531,5 +523,44 @@ test.each(['android', 'ios'] as const)(
     await Renderer.act(async () => renderer!.unmount());
     systemAlert.mockRestore();
     sheet.mockRestore();
+  },
+);
+
+test.each(['android', 'ios'] as const)(
+  '%s first release blocks hosting and connecting, with local chat and nearby sharing available',
+  async platform => {
+    let renderer: Renderer.ReactTestRenderer;
+    await Renderer.act(async () => {
+      renderer = Renderer.create(<Harness platform={platform} />);
+    });
+    await Renderer.act(async () => {
+      app.setRoute('settings');
+    });
+    expect(
+      renderer!.root.findAllByProps({ accessibilityLabel: 'Host & Connect' }),
+    ).toHaveLength(0);
+    await Renderer.act(async () => {
+      expect(await app.lan.start()).toBe(false);
+      expect(
+        await app.lan.connect('http://192.168.1.2:8080', 'a'.repeat(48)),
+      ).toBe(false);
+    });
+    expect(app.lan.error).toBe(
+      'LAN inference is not available in this release.',
+    );
+    expect(app.lan.host).toBeNull();
+    expect(app.lan.remote).toBeNull();
+    await Renderer.act(async () => {
+      app.setRoute('chat');
+      app.chat.setDraft('Hello');
+    });
+    expect(app.chat.draft).toBe('Hello');
+    await Renderer.act(async () => {
+      app.setRoute('nearby');
+    });
+    expect(
+      renderer!.root.findByProps({ label: 'Receive model' }),
+    ).toBeDefined();
+    await Renderer.act(async () => renderer!.unmount());
   },
 );

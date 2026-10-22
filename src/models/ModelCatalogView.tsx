@@ -338,13 +338,15 @@ export function ModelCatalogView({
           </Text>
         </View>
         {onReceive ? (
-          <Button
-            label="Receive model nearby"
-            icon="connected"
-            colors={colors}
-            disabled={controller.generationActive || controller.importing}
-            onPress={onReceive}
-          />
+          <View style={styles.receiveAction}>
+            <Button
+              label="Receive model nearby"
+              icon="connected"
+              colors={colors}
+              disabled={controller.generationActive || controller.importing}
+              onPress={onReceive}
+            />
+          </View>
         ) : null}
         {yours.map(model => (
           <ModelCard
@@ -499,6 +501,7 @@ const styles = StyleSheet.create({
   },
   unreviewedText: { fontSize: 12, fontWeight: '500' },
   container: { flex: 1 },
+  receiveAction: { marginBottom: 12 },
   catalog: { paddingHorizontal: 10, paddingBottom: 112 },
   section: {
     flexDirection: 'row',

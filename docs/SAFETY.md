@@ -14,11 +14,11 @@ or confirmation of Play Store approval or a live backend deployment.
 | Local input checks | Small set of explicit harmful requests in the newest user message, including LAN hosting. | No output filtering; model behavior determines generated content. |
 | AI response reporting | Selected assistant-response text opens an editable report form. | Requires configured and deployed report backend; does not block harmful output. |
 | Transparency | AI accuracy notice and in-app privacy policy in About app. | Notices do not enforce model behavior. |
-| Local processing | Local inference and document retrieval; no account required. | LAN inference and explicit report submission send data off the phone. |
+| Local processing | Local inference and document retrieval; no account required. | Explicit report submission sends data off the phone; LAN inference is disabled in the first release. |
 | Report privacy | Diagnostics off by default; no automatic full-chat, image, document or log attachment. | Selected response text can itself contain personal or retrieved information. |
 | Report backend | HTTPS submission, validation, private table, retry deduplication and global admission cap. | Public project key is not user authentication or bot protection. |
 | Nearby sharing | Authenticated encryption, bounded chunks, final checksums and receiver acceptance. | Sender-provided hashes alone cannot establish publisher identity. |
-| LAN hosting | Session access keys, private-address checks, request limits and lifecycle cleanup. | Inference traffic is HTTP without encryption. |
+| LAN inference | Disabled in the first release; no settings entry or active request handlers, and start/connect operations are blocked. | Deferred implementation remains in source and must be reviewed before enabling. |
 | Imports and resources | Format/size checks, bounded PDF extraction and file-size browsing guidance. | These checks are not a sandbox, content moderation or a RAM-fit guarantee. |
 
 ## 1. AI response reporting and user review
@@ -247,3 +247,7 @@ does not deploy a backend, introduce moderation or change runtime behavior.
 ## October 22 regression and privacy review
 
 See [privacy and Data Safety review](PRIVACY_DATA_SAFETY_REVIEW.md) for the source inventory, declaration worksheet and unresolved release blockers. Category and paraphrase fixtures are in `src/chat/safety.test.ts`; streaming/lifecycle regressions are in `src/chat/ChatView.test.tsx`. Tests use non-operational mocked output and do not establish that models will reliably refuse unsafe requests. No output detection is implemented.
+
+## First-release LAN scope
+
+`LAN_INFERENCE_ENABLED` is false in `src/app/releaseFeatures.ts`. The app hides Host & Connect, rejects hosting/connection attempts and skips LAN inference listeners. Local inference, downloads and encrypted nearby model-file sharing remain available. Native networking code is retained because nearby sharing uses its transport; this is runtime feature disablement, not removal of all networking code. Privacy disclosures reflect this scope. LAN-specific descriptions earlier in this document refer to the deferred implementation.

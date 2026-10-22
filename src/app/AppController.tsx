@@ -1,3 +1,4 @@
+import { LAN_INFERENCE_ENABLED } from './releaseFeatures';
 import { showDialog, showActionMenu } from '../ui/Popups';
 import { Platform } from 'react-native';
 import { exportChat, importChatFile } from '../chat/chatTransfer';
@@ -52,6 +53,7 @@ export function useAppController() {
     if (settings.error) setNotice(settings.error);
   }, [settings.error, setNotice]);
   const lan = useLan({
+    enabled: LAN_INFERENCE_ENABLED,
     context: models.context,
     model: models.model,
     settings: settings.forModel(models.model),

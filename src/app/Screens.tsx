@@ -1,3 +1,4 @@
+import { LAN_INFERENCE_ENABLED } from './releaseFeatures';
 import { privacyPolicy } from '../support/privacyPolicy';
 import { responseReportDraft } from '../support/responseReport';
 import type { IssueDraft } from '../support/issueReport';
@@ -381,7 +382,7 @@ function SettingsScreen({ app }: { app: AppController }) {
         {(
           [
             'General',
-            'Host & Connect',
+            ...(LAN_INFERENCE_ENABLED ? ['Host & Connect'] : []),
             'Model defaults',
             'About app',
           ] as SettingsSection[]
@@ -467,7 +468,7 @@ function SettingsScreen({ app }: { app: AppController }) {
               onPress={app.importChat}
             />
           </>
-        ) : section === 'Host & Connect' ? (
+        ) : section === 'Host & Connect' && LAN_INFERENCE_ENABLED ? (
           <>
             <LanSettings app={app} />
           </>

@@ -1,3 +1,5 @@
+> First release: LAN hosting and remote inference are disabled by `src/app/releaseFeatures.ts`. The setup below describes deferred functionality and is not available in the shipping UI. Nearby model-file sharing is separate.
+
 # Local Wi-Fi hosting (preview)
 
 One LLMHub phone runs a loaded model; another LLMHub phone connects over the same Wi-Fi without downloading that model. This is foreground-only LAN inference, not a Wi-Fi router, model transfer, distributed inference, or an Android shared-runtime SDK.
